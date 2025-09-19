@@ -54,47 +54,34 @@ The application follows a strict **MVC (Model-View-Controller)** architecture fo
 
 ```
 src/features/ingredient-library/
-├── README.md                    # Feature documentation
 ├── index.ts                     # Public API exports
 ├── styles.ts                    # Centralized Tailwind utility maps
 ├── constants/
-│   └── filterOptions.ts         # Filter configuration options
+│   ├── filterConfig.ts         # Filter configuration
+│   ├── filterOptions.ts        # Filter option definitions
+│   └── tableConfig.ts          # Table configuration options
 ├── theme/
 │   ├── tokens.ts               # Design tokens (colors, spacing, typography)
-│   ├── icons.ts                # Icon definitions
-│   └── icons.tsx               # Icon components
+│   ├── iconTypes.ts            # Icon type definitions
+│   ├── iconConstants.ts        # Icon SVG definitions
+│   └── icons.tsx               # Icon React components
 ├── model/
 │   ├── types.ts                # Core data types and interfaces
 │   └── schemas.ts              # Type guards and validation
 ├── data/
-│   ├── ingredients.sample.ts   # Mock data for development (832 ingredients)
-│   └── i18n.en.ts             # Internationalization strings
+│   └── ingredients.sample.ts    # Mock data for development (832 ingredients)
 ├── services/
 │   ├── dataSource.ts          # Data source interface
 │   ├── dxApiClient.ts         # Pega DX API client (ready for integration)
-│   ├── localDataSource.ts    # Local data implementation
-│   └── viewStore.ts           # Saved views management
+│   └── localDataSource.ts     # Local data implementation
 ├── controller/
 │   ├── advancedTableController.ts  # Advanced table state management
-│   ├── filterBuilder.ts            # Dynamic filtering logic
 │   ├── selectors.ts                # Pure utility functions
-│   ├── tableController.tsx         # Main TanStack Table controller
-│   └── __tests__/                  # Comprehensive test suites
+│   └── __tests__/                  # Test suites
 └── view/
     ├── IngredientLibrary.tsx       # Main page component
     └── components/                 # Reusable UI components
-        ├── Badges.tsx
-        ├── ColumnManager.tsx
-        ├── CompareDialog.tsx
-        ├── DataTable.tsx
-        ├── Empty.tsx
-        ├── ErrorState.tsx
-        ├── FilterDropdown.tsx
-        ├── Loading.tsx
-        ├── Multiselect.tsx
-        ├── SavedViews.tsx
-        ├── StatsBar.tsx
-        └── Toolbar.tsx
+        └── CompareDialog.tsx       # Ingredient comparison dialog
 ```
 
 ## Data Architecture
@@ -141,6 +128,73 @@ const dataSource = new LocalDataSource();
 
 // Production (Pega DX API or other external source)
 const dataSource = new DxApiClient("https://api.your-system.com", apiKey);
+```
+
+## Configuration
+
+### Table Configuration
+
+All table features can be configured through `src/features/ingredient-library/constants/tableConfig.ts`:
+
+```typescript
+export const DEFAULT_TABLE_CONFIG: TableConfig = {
+  selection: {
+    enableRowSelection: true,
+    enableChildRowSelection: false,
+    enableMultiRowSelection: true,
+    maxSelections: 10,
+  },
+  expansion: {
+    enabled: true,
+    defaultExpandedRows: [],
+    enableAutoExpand: false,
+  },
+  // ... other configurations
+};
+```
+
+### Filter Configuration
+
+Filters are configured through `src/features/ingredient-library/constants/filterConfig.ts`:
+
+```typescript
+export const FILTER_CONFIG: FilterConfig[] = [
+  {
+    id: 'category',
+    label: 'Category',
+    type: 'checkbox',
+    options: categoryOptions,
+    enabled: true,
+  },
+  // ... other filters
+];
+```
+
+### Quick Configuration Examples
+
+**Enable Child Row Selection:**
+```typescript
+selection: {
+  enableChildRowSelection: true, // Change to true
+}
+```
+
+**Disable All Selection:**
+```typescript
+selection: {
+  enableRowSelection: false, // Change to false
+}
+```
+
+**Add New Filter:**
+```typescript
+{
+  id: 'newField',
+  label: 'New Filter',
+  type: 'checkbox',
+  options: newFieldOptions,
+  enabled: true,
+}
 ```
 
 ## Advanced Features
@@ -326,30 +380,34 @@ interface IDataSource {
 
 ## Known Issues & Solutions
 
-### Current Issues
+### Current Status
 
-1. **Compare Ingredients Flow**: Dialog may not display properly in some scenarios
-2. **Expand/Collapse Behavior**: Missing chevron icons and expansion not working consistently
+✅ **All Major Issues Resolved**:
+- **Expand/Collapse Functionality**: Fixed with proper chevron icons and working expansion
+- **Compare Ingredients**: Fully functional with proper dialog display
+- **Icon System**: Complete icon library with proper SVG rendering
+- **Hierarchical Data**: Working parent-child relationships with expandable rows
+
+### Recent Fixes
+
+1. **Expander Column**: Now displays proper chevron icons (►/▼) with working expand/collapse functionality
+2. **Icon Rendering**: Fixed SVG icon visibility with proper color inheritance
+3. **Code Cleanup**: Removed 25+ unused files and components for cleaner codebase
+4. **Circular Dependencies**: Resolved import issues with icon components
 
 ### Troubleshooting
 
-#### Compare Dialog Not Opening
+#### If Expansion Still Not Working
 
-- Ensure 2-5 ingredients are selected
-- Check browser console for TypeScript errors
-- Verify Radix UI Dialog dependencies
+- Check browser console for any JavaScript errors
+- Verify that ingredients have `parentId` values in the data
+- Ensure TanStack Table expansion is enabled in configuration
 
-#### Expansion Icons Missing
-
-- Check icon SVG components in theme/icons.tsx
-- Verify CSS classes for icon visibility
-- Ensure proper TanStack Table getSubRows configuration
-
-#### Performance Issues with Large Datasets
+#### Performance Optimization
 
 - Enable virtualization for tables > 1000 rows
-- Implement server-side pagination
-- Use React.memo for expensive components
+- Use debounced search (300ms delay)
+- Implement React.memo for expensive components
 
 ## Testing
 
@@ -409,12 +467,19 @@ npm run test:coverage
 
 ## Roadmap
 
+### ✅ Completed (Recent Updates)
+
+- [x] **Expand/Collapse Functionality**: Fixed chevron icons and hierarchical row expansion
+- [x] **Icon System**: Complete icon library with proper SVG rendering
+- [x] **Code Cleanup**: Removed unused files and components
+- [x] **Compare Dialog**: Fully functional ingredient comparison
+
 ### Near Term
 
-- [ ] Resolve expand/collapse issues
-- [ ] Fix Compare Dialog edge cases
 - [ ] Enhanced mobile responsiveness
-- [ ] Saved views functionality
+- [ ] Advanced filtering UI improvements
+- [ ] Performance optimization for large datasets
+- [ ] Enhanced export options
 
 ### Future Enhancements
 
@@ -423,7 +488,8 @@ npm run test:coverage
 - [ ] Batch operations interface
 - [ ] Integration with formula management
 - [ ] Multi-language support
-- [ ] Advanced export formats
+- [ ] Advanced export formats (Excel, PDF)
+- [ ] Real-time collaboration features
 
 ## License
 

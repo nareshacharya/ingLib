@@ -20,18 +20,27 @@ import {
 import { LocalDataSource } from "../services/localDataSource";
 import type { Ingredient } from "../model/types";
 import { AdvancedTableController } from "../controller/advancedTableController";
-import { Icon } from "../theme/icons";
 import { FILTER_CONFIG } from "../constants/filterConfig";
-import { DEFAULT_TABLE_CONFIG, getSelectionConfig, getFilterConfig } from "../constants/tableConfig";
+import { getSelectionConfig, getFilterConfig } from "../constants/tableConfig";
+import { DEFAULT_MASTER_CONFIG, ConfigManager, type MasterConfig } from "../constants/configManager";
+import { UIConfigHelper } from "../constants/uiConfig";
 import { CompareDialog } from "./components/CompareDialog";
+import { ConfigPage } from "./components/ConfigPage";
 
+// Initialize data source - can be configured dynamically
 const dataSource = new LocalDataSource();
 
 export const IngredientLibrary: React.FC = () => {
-  // Table configuration - easily modify behavior here
-  const tableConfig = DEFAULT_TABLE_CONFIG;
+  // Configuration management
+  const [configManager] = useState(() => new ConfigManager(DEFAULT_MASTER_CONFIG));
+  const [masterConfig, setMasterConfig] = useState<MasterConfig>(configManager.getConfig());
+  const [showConfigPage, setShowConfigPage] = useState(false);
+  
+  // Table configuration - now from master config
+  const tableConfig = masterConfig.table;
   const selectionConfig = getSelectionConfig(tableConfig);
   const tableFilterConfig = getFilterConfig(tableConfig);
+  const uiConfig = masterConfig.ui;
 
   // Data state
   const [data, setData] = useState<Ingredient[]>([]);
@@ -57,6 +66,22 @@ export const IngredientLibrary: React.FC = () => {
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Configuration handlers
+  const handleConfigChange = useCallback((newConfig: MasterConfig) => {
+    configManager.updateConfig(newConfig);
+    setMasterConfig(newConfig);
+  }, [configManager]);
+
+  const handleConfigSave = useCallback((newConfig: MasterConfig) => {
+    // Save configuration to localStorage or API
+    localStorage.setItem('ingredient-library-config', JSON.stringify(newConfig));
+    setShowConfigPage(false);
+  }, []);
+
+  const handleConfigCancel = useCallback(() => {
+    setShowConfigPage(false);
+  }, []);
+
   // Custom row selection handler that respects configuration
   const handleRowSelectionChange = useCallback((updater: ((prev: RowSelectionState) => RowSelectionState) | RowSelectionState) => {
     setRowSelection((prevSelection) => {
@@ -70,8 +95,8 @@ export const IngredientLibrary: React.FC = () => {
           // Test the updater with an empty state to see if it would select all
           const testResult = updater({});
           
-          // If it's selecting all (returns true or selects all parent rows), select only parent rows
-          if (testResult === true || (typeof testResult === 'object' && Object.keys(testResult).length === parentRows.length)) {
+          // If it's selecting all (selects all parent rows), select only parent rows
+          if (typeof testResult === 'object' && Object.keys(testResult).length === parentRows.length) {
             const allParentSelection: RowSelectionState = {};
             parentRows.forEach(row => {
               allParentSelection[row.id] = true;
@@ -80,7 +105,7 @@ export const IngredientLibrary: React.FC = () => {
           }
           
           // If it's deselecting all, return empty object
-          if (testResult === false || (typeof testResult === 'object' && Object.keys(testResult).length === 0)) {
+          if (typeof testResult === 'object' && Object.keys(testResult).length === 0) {
             return {};
           }
         }
@@ -192,7 +217,7 @@ export const IngredientLibrary: React.FC = () => {
       // Compact selection column - only show if row selection is enabled
       ...(selectionConfig.enableRowSelection ? [{
         id: "select",
-        header: ({ table }) => (
+        header: ({ table }: { table: any }) => (
           <input
             type="checkbox"
             checked={table.getIsAllRowsSelected()}
@@ -203,7 +228,7 @@ export const IngredientLibrary: React.FC = () => {
             className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
         ),
-        cell: ({ row }) => {
+        cell: ({ row }: { row: any }) => {
           // Check if this is a child row and child selection is disabled
           const isChildRow = !!(row.original as Ingredient).parentId;
           const canSelect = selectionConfig.enableChildRowSelection || !isChildRow;
@@ -464,207 +489,156 @@ export const IngredientLibrary: React.FC = () => {
     );
   }
 
+  // Show configuration page if requested
+  if (showConfigPage) {
+    return (
+      <ConfigPage
+        initialConfig={masterConfig}
+        onConfigChange={handleConfigChange}
+        onSave={handleConfigSave}
+        onCancel={handleConfigCancel}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Ingredient Library</h1>
-        <p className="text-gray-600 mt-2">
-          Manage your perfume ingredients with advanced filtering and
-          hierarchical organization
-        </p>
-      </div>
-
-      {/* Stats Bar */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-sm text-gray-600">Total Ingredients</div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-2xl font-bold text-green-600">
-            {stats.active}
+    <div className="min-h-screen w-full space-y-4 md:space-y-6">
+      {/* Header - Conditional based on UI config */}
+      {UIConfigHelper.shouldShowComponent(uiConfig, 'header') && (
+        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 px-4 md:px-6">
+          <div className="flex-1">
+            {UIConfigHelper.getHeaderConfig(uiConfig).showTitle && (
+              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl">
+                {UIConfigHelper.getHeaderConfig(uiConfig).title || "Ingredient Library"}
+              </h1>
+            )}
+            {UIConfigHelper.getHeaderConfig(uiConfig).showDescription && (
+              <p className="text-gray-600 mt-2 text-sm sm:text-base">
+                {UIConfigHelper.getHeaderConfig(uiConfig).description || 
+                  "Manage your perfume ingredients with advanced filtering and hierarchical organization"}
+              </p>
+            )}
           </div>
-          <div className="text-sm text-gray-600">Active</div>
-        </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-2xl font-bold text-yellow-600">
-            {stats.favorites}
+          
+          {/* Configuration Button */}
+          <div className="flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowConfigPage(true)}
+              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 sm:w-auto"
+            >
+              ⚙️ Configure Table
+            </button>
           </div>
-          <div className="text-sm text-gray-600">Favorites</div>
         </div>
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-2xl font-bold text-red-600">
-            {stats.lowStock}
-          </div>
-          <div className="text-sm text-gray-600">Low Stock</div>
-        </div>
-      </div>
+      )}
 
-      {/* Enhanced Controls Toolbar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Primary Toolbar */}
-        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-4 border-b border-gray-200">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-            {/* Left Section - Search and Quick Actions */}
-            <div className="flex items-center gap-3 flex-1">
-              {/* Enhanced Search */}
-              <div className="relative flex-1 max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search ingredients..."
-                  value={globalFilter || ""}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
-                />
-                {globalFilter && (
-                  <button
-                    type="button"
-                    onClick={() => setGlobalFilter("")}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    <svg
-                      className="h-4 w-4 text-gray-400 hover:text-gray-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                )}
-              </div>
-
-              {/* Action Buttons Group */}
-              <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm divide-x divide-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-l-lg transition-all duration-200 ${
-                    showFilters
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
-                      : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
-                    />
-                  </svg>
-                  Filters
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowColumnManager(!showColumnManager)}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"
-                    />
-                  </svg>
-                  Columns
-                </button>
-
-                {/* Group By Dropdown */}
-                <div className="relative">
-                  <select
-                    value={grouping[0] || ""}
-                    onChange={(e) =>
-                      setGrouping(e.target.value ? [e.target.value] : [])
-                    }
-                    className="appearance-none bg-transparent px-4 py-2.5 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset rounded-r-lg transition-colors duration-200 border-0"
-                  >
-                    <option value="">No Grouping</option>
-                    <option value="category">Group by Category</option>
-                    <option value="status">Group by Status</option>
-                    <option value="type">Group by Type</option>
-                    <option value="supplier">Group by Supplier</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+      {/* Stats Bar - Conditional based on UI config */}
+      {UIConfigHelper.shouldShowComponent(uiConfig, 'stats') && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 px-4 md:px-6">
+          {UIConfigHelper.getStatsConfig(uiConfig).showTotal && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+              <div className="text-sm text-gray-600">Total Ingredients</div>
             </div>
-
-            {/* Right Section - Stats and Selection Actions */}
-            <div className="flex items-center gap-4">
-              {/* Stats Display */}
-              <div className="flex items-center gap-4 text-sm text-gray-600 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-                <div className="flex items-center gap-1">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="font-medium">
-                    {table.getFilteredRowModel().rows.length}
-                  </span>
-                  <span>of {data.length}</span>
-                </div>
+          )}
+          {UIConfigHelper.getStatsConfig(uiConfig).showActive && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-2xl font-bold text-green-600">
+                {stats.active}
               </div>
+              <div className="text-sm text-gray-600">Active</div>
+            </div>
+          )}
+          {UIConfigHelper.getStatsConfig(uiConfig).showFavorites && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-2xl font-bold text-yellow-600">
+                {stats.favorites}
+              </div>
+              <div className="text-sm text-gray-600">Favorites</div>
+            </div>
+          )}
+          {UIConfigHelper.getStatsConfig(uiConfig).showLowStock && (
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-2xl font-bold text-red-600">
+                {stats.lowStock}
+              </div>
+              <div className="text-sm text-gray-600">Low Stock</div>
+            </div>
+          )}
+        </div>
+      )}
 
-              {/* Selection Actions */}
-              {selectedIngredients.length > 0 && (
-                <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-                  <div className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span className="text-sm font-medium text-gray-700">
-                      {selectedIngredients.length} selected
-                    </span>
+      {/* Enhanced Controls Toolbar - Conditional based on UI config */}
+      {UIConfigHelper.shouldShowComponent(uiConfig, 'toolbar') && (
+        <div className="px-4 md:px-6">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
+          {/* Primary Toolbar */}
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-4 border-b border-gray-200 sm:px-6">
+            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:space-y-0 lg:gap-4">
+              {/* Left Section - Search and Quick Actions */}
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:gap-3 flex-1">
+                {/* Enhanced Search - Conditional */}
+                {UIConfigHelper.getToolbarConfig(uiConfig).showSearch && (
+                  <div className="relative flex-1 w-full sm:max-w-md">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg
+                        className="h-4 w-4 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search ingredients..."
+                      value={globalFilter || ""}
+                      onChange={(e) => setGlobalFilter(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 placeholder-gray-500"
+                    />
+                    {globalFilter && (
+                      <button
+                        type="button"
+                        onClick={() => setGlobalFilter("")}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      >
+                        <svg
+                          className="h-4 w-4 text-gray-400 hover:text-gray-600"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    )}
                   </div>
+                )}
 
-                  {canCompare && (
+                {/* Action Buttons Group */}
+                <div className="flex flex-wrap items-center bg-white rounded-lg border border-gray-200 shadow-sm divide-x divide-gray-200 overflow-hidden">
+                  {/* Filters Button - Conditional */}
+                  {UIConfigHelper.getToolbarConfig(uiConfig).showFilters && (
                     <button
                       type="button"
-                      onClick={() => setShowCompareDialog(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-l-lg transition-all duration-200 ${
+                        showFilters
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
                     >
                       <svg
                         className="w-4 h-4"
@@ -676,47 +650,191 @@ export const IngredientLibrary: React.FC = () => {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2V7a2 2 0 012-2h2a2 2 0 002 2v2a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 00-2 2H9z"
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
                         />
                       </svg>
-                      Compare ({selectedIngredients.length})
+                      Filters
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => setRowSelection({})}
-                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
-                    title="Clear selection"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                  {/* Column Manager Button - Conditional */}
+                  {UIConfigHelper.getToolbarConfig(uiConfig).showColumnManager && (
+                    <button
+                      type="button"
+                      onClick={() => setShowColumnManager(!showColumnManager)}
+                      className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"
+                        />
+                      </svg>
+                      Columns
+                    </button>
+                  )}
+
+                  {/* Group By Dropdown */}
+                  <div className="relative">
+                    <select
+                      value={grouping[0] || ""}
+                      onChange={(e) =>
+                        setGrouping(e.target.value ? [e.target.value] : [])
+                      }
+                      className="appearance-none bg-transparent px-4 py-2.5 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset rounded-r-lg transition-colors duration-200 border-0"
+                    >
+                      <option value="">No Grouping</option>
+                      <option value="category">Group by Category</option>
+                      <option value="status">Group by Status</option>
+                      <option value="type">Group by Type</option>
+                      <option value="supplier">Group by Supplier</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                      <svg
+                        className="w-4 h-4 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-              )}
+              </div>
+
+              {/* Right Section - Stats and Selection Actions */}
+              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:gap-4">
+                {/* Stats Display */}
+                <div className="flex items-center gap-4 text-sm text-gray-600 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <span className="font-medium">
+                      {data.length}
+                    </span>
+                    <span>total records</span>
+                  </div>
+                </div>
+
+                {/* Selection Actions */}
+                {selectedIngredients.length > 0 && (
+                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-1">
+                      <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {selectedIngredients.length} selected
+                      </span>
+                    </div>
+
+                    {/* Compare Button - Conditional */}
+                    {canCompare && UIConfigHelper.getToolbarConfig(uiConfig).showCompare && (
+                      <button
+                        type="button"
+                        onClick={() => setShowCompareDialog(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2-2V7a2 2 0 012-2h2a2 2 0 002 2v2a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2v2a2 2 0 00-2 2H9z"
+                          />
+                        </svg>
+                        Compare ({selectedIngredients.length})
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setRowSelection({})}
+                      className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
+                      title="Clear selection"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+          </div>
         </div>
+      )}
 
-        {/* Advanced Filters Panel */}
-        {showFilters && (
-          <div className="bg-gray-50 border-b border-gray-200">
-            <div className="px-6 py-5">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="px-4 md:px-6">
+          <div className="bg-gray-50 border-b border-gray-200 w-full">
+            <div className="px-4 py-5 sm:px-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <svg
+                  className="w-4 h-4 text-gray-600"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
+                  />
+                </svg>
+                Advanced Filters
+              </h4>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setColumnFilters([{ id: "favorite", value: true }]);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors"
+                >
+                  <span className="text-amber-500">★</span>
+                  Favorites Only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setColumnFilters([]);
+                    setGlobalFilter("");
+                    setGrouping([]);
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                >
                   <svg
-                    className="w-4 h-4 text-gray-600"
+                    className="w-3 h-3"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -725,135 +843,100 @@ export const IngredientLibrary: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                     />
                   </svg>
-                  Advanced Filters
-                </h4>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setColumnFilters([{ id: "favorite", value: true }]);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors"
-                  >
-                    <span className="text-amber-500">★</span>
-                    Favorites Only
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setColumnFilters([]);
-                      setGlobalFilter("");
-                      setGrouping([]);
-                    }}
-                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-                  >
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    Reset All
-                  </button>
-                </div>
+                  Reset All
+                </button>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {FILTER_CONFIG.filter((config) => config.enabled).map(
-                  (filterConfig) => (
-                    <div
-                      key={filterConfig.id}
-                      className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
-                    >
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                        {filterConfig.icon}
-                        {filterConfig.label}
-                      </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {FILTER_CONFIG.filter((config) => config.enabled).map(
+                (filterConfig) => (
+                  <div
+                    key={filterConfig.id}
+                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+                  >
+                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
+                      {filterConfig.icon}
+                      {filterConfig.label}
+                    </label>
 
-                      {filterConfig.type === "checkbox" ? (
-                        <div className="space-y-2">
-                          {filterConfig.options.map((option) => {
-                            const isSelected = (
-                              (columnFilters.find(
-                                (f) => f.id === filterConfig.id
-                              )?.value as string[]) || []
-                            ).includes(option.value);
-                            return (
-                              <label
-                                key={option.value}
-                                className="flex items-center gap-2 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={(e) => {
-                                    const currentValues =
-                                      (columnFilters.find(
-                                        (f) => f.id === filterConfig.id
-                                      )?.value as string[]) || [];
-                                    const newValues = e.target.checked
-                                      ? [...currentValues, option.value]
-                                      : currentValues.filter(
-                                          (v) => v !== option.value
-                                        );
-                                    setColumnFilters((prev) =>
-                                      prev
-                                        .filter((f) => f.id !== filterConfig.id)
-                                        .concat(
-                                          newValues.length > 0
-                                            ? [
-                                                {
-                                                  id: filterConfig.id,
-                                                  value: newValues,
-                                                },
-                                              ]
-                                            : []
-                                        )
-                                    );
-                                  }}
-                                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-700">
-                                  {option.label}
-                                </span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <select
-                          multiple
-                          size={4}
-                          value={
-                            (columnFilters.find((f) => f.id === filterConfig.id)
-                              ?.value as string[]) || []
-                          }
-                          onChange={(e) => {
-                            const values = Array.from(
-                              e.target.selectedOptions,
-                              (option) => option.value
-                            );
-                            setColumnFilters((prev) =>
-                              prev
-                                .filter((f) => f.id !== filterConfig.id)
-                                .concat(
-                                  values.length > 0
-                                    ? [{ id: filterConfig.id, value: values }]
-                                    : []
-                                )
-                            );
-                          }}
-                          className="w-full text-xs border-0 rounded-md bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                    {filterConfig.type === "checkbox" ? (
+                      <div className="space-y-2">
+                        {filterConfig.options.map((option) => {
+                          const isSelected = (
+                            (columnFilters.find(
+                              (f) => f.id === filterConfig.id
+                            )?.value as string[]) || []
+                          ).includes(option.value);
+                          return (
+                            <label
+                              key={option.value}
+                              className="flex items-center gap-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const currentValues =
+                                    (columnFilters.find(
+                                      (f) => f.id === filterConfig.id
+                                    )?.value as string[]) || [];
+                                  const newValues = e.target.checked
+                                    ? [...currentValues, option.value]
+                                    : currentValues.filter(
+                                        (v) => v !== option.value
+                                      );
+                                  setColumnFilters((prev) =>
+                                    prev
+                                      .filter((f) => f.id !== filterConfig.id)
+                                      .concat(
+                                        newValues.length > 0
+                                          ? [
+                                              {
+                                                id: filterConfig.id,
+                                                value: newValues,
+                                              },
+                                            ]
+                                          : []
+                                      )
+                                  );
+                                }}
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-sm text-gray-700">
+                                {option.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <select
+                        multiple
+                        size={4}
+                        value={
+                          (columnFilters.find((f) => f.id === filterConfig.id)
+                            ?.value as string[]) || []
+                        }
+                        onChange={(e) => {
+                          const values = Array.from(
+                            e.target.selectedOptions,
+                            (option) => option.value
+                          );
+                          setColumnFilters((prev) =>
+                            prev
+                              .filter((f) => f.id !== filterConfig.id)
+                              .concat(
+                                values.length > 0
+                                  ? [{ id: filterConfig.id, value: values }]
+                                  : []
+                              )
+                          );
+                        }}
+                        className="w-full text-xs border-0 rounded-md bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                         >
                           {filterConfig.options.map((option) => (
                             <option
@@ -872,12 +955,14 @@ export const IngredientLibrary: React.FC = () => {
               </div>
             </div>
           </div>
+          </div>
         )}
 
         {/* Column Manager Panel */}
         {showColumnManager && (
-          <div className="bg-gray-50 border-b border-gray-200">
-            <div className="px-6 py-5">
+          <div className="px-4 md:px-6">
+            <div className="bg-gray-50 border-b border-gray-200 w-full">
+              <div className="px-4 py-5 sm:px-6">
               <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <svg
                   className="w-4 h-4 text-gray-600"
@@ -894,7 +979,7 @@ export const IngredientLibrary: React.FC = () => {
                 </svg>
                 Column Visibility
               </h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                 {table.getAllLeafColumns().map((column) => {
                   const isVisible = column.getIsVisible();
                   return (
@@ -925,12 +1010,13 @@ export const IngredientLibrary: React.FC = () => {
               </div>
             </div>
           </div>
+          </div>
         )}
-      </div>
 
       {/* Compact Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="px-4 md:px-6">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
           <table className="min-w-full divide-y divide-gray-200 text-xs">
             <thead className="bg-gray-50">
               {table.getHeaderGroups().map((headerGroup) => (
@@ -986,67 +1072,79 @@ export const IngredientLibrary: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">Show</span>
-          <select
-            value={table.getState().pagination.pageSize}
-            onChange={(e) => table.setPageSize(Number(e.target.value))}
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            {[10, 25, 50, 100].map((pageSize) => (
-              <option key={pageSize} value={pageSize}>
-                {pageSize}
-              </option>
-            ))}
-          </select>
-          <span className="text-sm text-gray-600">entries</span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
-            className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            First
-          </button>
-          <button
-            type="button"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-            className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Previous
-          </button>
-
-          <span className="px-3 py-1 text-sm text-gray-600">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount()}
-          </span>
-
-          <button
-            type="button"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-            className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Next
-          </button>
-          <button
-            type="button"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
-            className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Last
-          </button>
         </div>
       </div>
+
+      {/* Pagination - Conditional based on UI config */}
+      {UIConfigHelper.shouldShowComponent(uiConfig, 'pagination') && (
+        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 px-4 md:px-6">
+          {/* Page Size Selector - Conditional */}
+          {UIConfigHelper.getPaginationConfig(uiConfig).showPageSizeSelector && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Show</span>
+              <select
+                value={table.getState().pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="border border-gray-300 rounded px-2 py-1 text-sm"
+              >
+                {UIConfigHelper.getPaginationConfig(uiConfig).pageSizeOptions.map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>
+                    {pageSize}
+                  </option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-600">entries</span>
+            </div>
+          )}
+
+          {/* Navigation Controls - Conditional */}
+          {UIConfigHelper.getPaginationConfig(uiConfig).showNavigationButtons && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => table.setPageIndex(0)}
+                disabled={!table.getCanPreviousPage()}
+                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                First
+              </button>
+              <button
+                type="button"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Previous
+              </button>
+
+              {/* Page Info - Conditional */}
+              {UIConfigHelper.getPaginationConfig(uiConfig).showPageInfo && (
+                <span className="px-3 py-1 text-sm text-gray-600">
+                  Page {table.getState().pagination.pageIndex + 1} of{" "}
+                  {table.getPageCount()}
+                </span>
+              )}
+
+              <button
+                type="button"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+                disabled={!table.getCanNextPage()}
+                className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+              >
+                Last
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Comparison Dialog */}
       <CompareDialog

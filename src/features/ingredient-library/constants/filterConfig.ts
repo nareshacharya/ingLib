@@ -1,4 +1,3 @@
-import React from "react";
 import {
     categoryOptions,
     statusOptions,
@@ -10,13 +9,30 @@ import {
  * Filter Configuration Interface
  * Used to define which filters are available and how they should be rendered
  */
+export type FilterType = "checkbox" | "multiselect" | "select" | "range" | "text" | "boolean";
+
 export interface FilterConfig {
     id: string; // Column ID that this filter targets
     label: string; // Display name for the filter
-    icon: React.ReactElement; // Icon component to display
-    type: 'checkbox' | 'multiselect'; // How the filter should be rendered
+    icon: string; // Icon component to display
+    type: FilterType; // How the filter should be rendered
     options: { value: string; label: string }[]; // Available options for the filter
     enabled: boolean; // Whether this filter should be shown
+    
+    // Enhanced configuration options
+    allowMultiple?: boolean; // For select/multiselect
+    allowSearch?: boolean; // For multiselect
+    minValue?: number; // For range filters
+    maxValue?: number; // For range filters
+    step?: number; // For range filters
+    placeholder?: string; // For text filters
+    defaultValue?: string | string[] | boolean; // Default value
+    validation?: {
+        required?: boolean;
+        minLength?: number;
+        maxLength?: number;
+        pattern?: string;
+    };
 }
 
 /**
