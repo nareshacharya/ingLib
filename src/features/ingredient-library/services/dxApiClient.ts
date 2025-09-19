@@ -1,4 +1,4 @@
-import type { Ingredient, IngredientId, IngredientFilters, ExportOptions } from '../model/types';
+import type { Ingredient, IngredientId, ExportOptions } from '../model/types';
 import type { IDataSource, DataSourceResult, ListOptions } from './dataSource';
 
 /**
@@ -61,11 +61,11 @@ export class DxApiClient implements IDataSource {
         }
     }
 
-    async list(options: ListOptions = {}): Promise<DataSourceResult<Ingredient[]>> {
+    async list(_options: ListOptions = {}): Promise<DataSourceResult<Ingredient[]>> {
         // TODO: Implement actual API call
         // const params = new URLSearchParams();
         // 
-        // if (options.filters?.search) {
+        // if (_options.filters?.search) {
         //   params.append('search', options.filters.search);
         // }
         // if (options.filters?.categories?.length) {
@@ -104,15 +104,15 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async get(id: IngredientId): Promise<DataSourceResult<Ingredient>> {
-        // TODO: return this.makeRequest<Ingredient>(`/ingredients/${id}`);
+    async get(_id: IngredientId): Promise<DataSourceResult<Ingredient>> {
+        // TODO: return this.makeRequest<Ingredient>(`/ingredients/${_id}`);
         return {
             success: false,
             error: 'DX API not implemented yet. Use LocalDataSource for development.',
         };
     }
 
-    async create(ingredient: Omit<Ingredient, 'id' | 'updatedAt'>): Promise<DataSourceResult<Ingredient>> {
+    async create(_ingredient: Omit<Ingredient, 'id' | 'updatedAt'>): Promise<DataSourceResult<Ingredient>> {
         // TODO: return this.makeRequest<Ingredient>('/ingredients', {
         //   method: 'POST',
         //   body: JSON.stringify(ingredient),
@@ -123,7 +123,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async update(id: IngredientId, updates: Partial<Ingredient>): Promise<DataSourceResult<Ingredient>> {
+    async update(_id: IngredientId, _updates: Partial<Ingredient>): Promise<DataSourceResult<Ingredient>> {
         // TODO: return this.makeRequest<Ingredient>(`/ingredients/${id}`, {
         //   method: 'PUT',
         //   body: JSON.stringify(updates),
@@ -134,7 +134,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async delete(id: IngredientId): Promise<DataSourceResult<void>> {
+    async delete(_id: IngredientId): Promise<DataSourceResult<void>> {
         // TODO: return this.makeRequest<void>(`/ingredients/${id}`, {
         //   method: 'DELETE',
         // });
@@ -144,7 +144,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async bulkExport(ids: IngredientId[], options: ExportOptions): Promise<DataSourceResult<string>> {
+    async bulkExport(_ids: IngredientId[], _options: ExportOptions): Promise<DataSourceResult<string>> {
         // TODO: return this.makeRequest<string>('/ingredients/bulk-export', {
         //   method: 'POST',
         //   body: JSON.stringify({ ids, options }),
@@ -155,7 +155,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async toggleFavorite(id: IngredientId): Promise<DataSourceResult<Ingredient>> {
+    async toggleFavorite(_id: IngredientId): Promise<DataSourceResult<Ingredient>> {
         // TODO: return this.makeRequest<Ingredient>(`/ingredients/${id}/favorite`, {
         //   method: 'PUT',
         // });
@@ -165,7 +165,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async duplicate(id: IngredientId): Promise<DataSourceResult<Ingredient>> {
+    async duplicate(_id: IngredientId): Promise<DataSourceResult<Ingredient>> {
         // TODO: return this.makeRequest<Ingredient>(`/ingredients/${id}/duplicate`, {
         //   method: 'POST',
         // });
@@ -175,7 +175,7 @@ export class DxApiClient implements IDataSource {
         };
     }
 
-    async archive(id: IngredientId): Promise<DataSourceResult<Ingredient>> {
+    async archive(_id: IngredientId): Promise<DataSourceResult<Ingredient>> {
         // TODO: return this.makeRequest<Ingredient>(`/ingredients/${id}/archive`, {
         //   method: 'PUT',
         // });

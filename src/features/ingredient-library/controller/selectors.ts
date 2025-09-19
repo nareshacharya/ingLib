@@ -190,7 +190,7 @@ export function exportToCSV(
 
     const rows = ingredients.map(ingredient =>
         columns.map(column => {
-            const value = (ingredient as any)[column];
+            const value = (ingredient as Record<string, unknown>)[column];
 
             if (Array.isArray(value)) {
                 return `"${value.join('; ')}"`;
@@ -294,7 +294,7 @@ export function formatStock(value: number): string {
 /**
  * Debounce function for search input
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
 ): (...args: Parameters<T>) => void {

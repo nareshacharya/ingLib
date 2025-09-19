@@ -23,6 +23,7 @@ import { AdvancedTableController } from "../controller/advancedTableController";
 import { Icon } from "../theme/icons";
 import { FILTER_CONFIG } from "../constants/filterConfig";
 import { DEFAULT_TABLE_CONFIG, getSelectionConfig, getFilterConfig } from "../constants/tableConfig";
+import { CompareDialog } from "./components/CompareDialog";
 
 const dataSource = new LocalDataSource();
 
@@ -30,7 +31,7 @@ export const IngredientLibrary: React.FC = () => {
   // Table configuration - easily modify behavior here
   const tableConfig = DEFAULT_TABLE_CONFIG;
   const selectionConfig = getSelectionConfig(tableConfig);
-  const filterConfig = getFilterConfig(tableConfig);
+  const tableFilterConfig = getFilterConfig(tableConfig);
 
   // Data state
   const [data, setData] = useState<Ingredient[]>([]);
@@ -38,7 +39,9 @@ export const IngredientLibrary: React.FC = () => {
 
   // Table state
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
+    expander: true, // Force expander column to be visible
+  });
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -55,19 +58,40 @@ export const IngredientLibrary: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   // Custom row selection handler that respects configuration
-  const handleRowSelectionChange = useCallback((updater: any) => {
+  const handleRowSelectionChange = useCallback((updater: ((prev: RowSelectionState) => RowSelectionState) | RowSelectionState) => {
     setRowSelection((prevSelection) => {
-      const newSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
-      
-      // If child row selection is disabled, filter out child rows
+      // If child row selection is disabled, we need to handle select all specially
       if (!selectionConfig.enableChildRowSelection) {
+        // Get only parent rows (non-child rows)
+        const parentRows = data.filter(item => !item.parentId);
+        
+        // Handle select all case - if the updater is a function, it might be select all
+        if (typeof updater === 'function') {
+          // Test the updater with an empty state to see if it would select all
+          const testResult = updater({});
+          
+          // If it's selecting all (returns true or selects all parent rows), select only parent rows
+          if (testResult === true || (typeof testResult === 'object' && Object.keys(testResult).length === parentRows.length)) {
+            const allParentSelection: RowSelectionState = {};
+            parentRows.forEach(row => {
+              allParentSelection[row.id] = true;
+            });
+            return allParentSelection;
+          }
+          
+          // If it's deselecting all, return empty object
+          if (testResult === false || (typeof testResult === 'object' && Object.keys(testResult).length === 0)) {
+            return {};
+          }
+        }
+        
+        // For individual selections, filter out child rows
+        const newSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
         const filteredSelection: RowSelectionState = {};
         
         Object.keys(newSelection).forEach(rowId => {
-          // Check if this is a child row by looking at the data
           const ingredient = data.find(item => item.id === rowId);
           if (ingredient && !ingredient.parentId) {
-            // Only allow parent rows to be selected
             filteredSelection[rowId] = newSelection[rowId];
           }
         });
@@ -75,7 +99,8 @@ export const IngredientLibrary: React.FC = () => {
         return filteredSelection;
       }
       
-      return newSelection;
+      // If child row selection is enabled, use the updater directly
+      return typeof updater === 'function' ? updater(prevSelection) : updater;
     });
   }, [selectionConfig.enableChildRowSelection, data]);
 
@@ -128,30 +153,38 @@ export const IngredientLibrary: React.FC = () => {
   // Define columns with compact design and expand/collapse functionality
   const columns = useMemo<ColumnDef<Ingredient>[]>(
     () => [
-      // Compact expander column
+      // Expandable column for hierarchical data
       {
         id: "expander",
         header: "",
         cell: ({ row }) => {
           const hasChildren = row.getCanExpand();
+          
           if (!hasChildren) {
-            return <div className="w-3" />;
+            return <div className="w-4" />; // Empty space for non-expandable rows
           }
 
           return (
             <button
+              type="button"
               onClick={row.getToggleExpandedHandler()}
-              className="flex items-center justify-center w-3 h-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+              className="flex items-center justify-center w-4 h-4 text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              style={{
+                borderRadius: '4px',
+                padding: '1em',
+                backgroundColor: '#f9fafb'
+              }}
+              aria-label={row.getIsExpanded() ? "Collapse row" : "Expand row"}
             >
               {row.getIsExpanded() ? (
-                <Icon name="chevronDown" size="xs" />
+                <span className="text-gray-600 font-bold">−</span>
               ) : (
-                <Icon name="chevronRight" size="xs" />
+                <span className="text-gray-600 font-bold">+</span>
               )}
             </button>
           );
         },
-        size: 24,
+        size: 32,
         enableSorting: false,
         enableHiding: false,
       },
@@ -356,7 +389,7 @@ export const IngredientLibrary: React.FC = () => {
         size: 60,
       },
     ],
-    []
+    [selectionConfig.enableRowSelection, selectionConfig.enableChildRowSelection]
   );
 
   // Create table instance with all TanStack features
@@ -400,9 +433,9 @@ export const IngredientLibrary: React.FC = () => {
     enableExpanding: tableConfig.expansion.enabled,
     enableSorting: tableConfig.sorting.enabled,
     enableHiding: tableConfig.columns.enableColumnVisibility,
-    enableFilters: filterConfig.enabled,
-    enableColumnFilters: filterConfig.enabled,
-    enableGlobalFilter: filterConfig.enabled,
+    enableFilters: tableFilterConfig.enabled,
+    enableColumnFilters: tableFilterConfig.enabled,
+    enableGlobalFilter: tableFilterConfig.enabled,
     enableGrouping: tableConfig.grouping.enabled,
     globalFilterFn: "includesString",
     getRowId: (row) => row.id,
@@ -501,6 +534,7 @@ export const IngredientLibrary: React.FC = () => {
                 />
                 {globalFilter && (
                   <button
+                    type="button"
                     onClick={() => setGlobalFilter("")}
                     className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   >
@@ -524,6 +558,7 @@ export const IngredientLibrary: React.FC = () => {
               {/* Action Buttons Group */}
               <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm divide-x divide-gray-200">
                 <button
+                  type="button"
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-l-lg transition-all duration-200 ${
                     showFilters
@@ -548,6 +583,7 @@ export const IngredientLibrary: React.FC = () => {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setShowColumnManager(!showColumnManager)}
                   className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors duration-200"
                 >
@@ -626,6 +662,7 @@ export const IngredientLibrary: React.FC = () => {
 
                   {canCompare && (
                     <button
+                      type="button"
                       onClick={() => setShowCompareDialog(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm"
                     >
@@ -647,6 +684,7 @@ export const IngredientLibrary: React.FC = () => {
                   )}
 
                   <button
+                    type="button"
                     onClick={() => setRowSelection({})}
                     className="p-1 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
                     title="Clear selection"
@@ -694,6 +732,7 @@ export const IngredientLibrary: React.FC = () => {
                 </h4>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => {
                       setColumnFilters([{ id: "favorite", value: true }]);
                     }}
@@ -703,6 +742,7 @@ export const IngredientLibrary: React.FC = () => {
                     Favorites Only
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setColumnFilters([]);
                       setGlobalFilter("");
@@ -968,6 +1008,7 @@ export const IngredientLibrary: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
             className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -975,6 +1016,7 @@ export const IngredientLibrary: React.FC = () => {
             First
           </button>
           <button
+            type="button"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
             className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -988,6 +1030,7 @@ export const IngredientLibrary: React.FC = () => {
           </span>
 
           <button
+            type="button"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
             className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -995,6 +1038,7 @@ export const IngredientLibrary: React.FC = () => {
             Next
           </button>
           <button
+            type="button"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
             className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
@@ -1005,291 +1049,11 @@ export const IngredientLibrary: React.FC = () => {
       </div>
 
       {/* Comparison Dialog */}
-      {showCompareDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-            {/* Dialog Header */}
-            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Compare Ingredients ({selectedIngredients.length})
-                </h3>
-                <button
-                  onClick={() => setShowCompareDialog(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <span className="sr-only">Close</span>
-                  <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Dialog Content */}
-            <div className="overflow-auto max-h-[calc(90vh-120px)]">
-              <table className="min-w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-gray-900 w-32">
-                      Attribute
-                    </th>
-                    {selectedIngredients.map((ingredient) => (
-                      <th
-                        key={ingredient.id}
-                        className="px-4 py-3 text-left font-medium text-gray-900 min-w-40"
-                      >
-                        <div>
-                          <div className="font-semibold">{ingredient.name}</div>
-                          <div className="text-xs text-gray-500 font-normal">
-                            {ingredient.id}
-                          </div>
-                        </div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {/* Basic Information */}
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Category
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-900"
-                      >
-                        {ingredient.category}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Family
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-900"
-                      >
-                        {ingredient.family}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Status
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td key={ingredient.id} className="px-4 py-2">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            ingredient.status === "Active"
-                              ? "bg-green-100 text-green-800"
-                              : ingredient.status === "Limited"
-                              ? "bg-orange-100 text-orange-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {ingredient.status}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Type
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td key={ingredient.id} className="px-4 py-2">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            ingredient.type === "Natural"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {ingredient.type}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Supplier
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-900"
-                      >
-                        {ingredient.supplier}
-                      </td>
-                    ))}
-                  </tr>
-
-                  {/* Pricing Information */}
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Cost per kg
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-900 font-medium"
-                      >
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: "USD",
-                        }).format(ingredient.costPerKg)}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Stock
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td key={ingredient.id} className="px-4 py-2">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            ingredient.stock === 0
-                              ? "bg-red-100 text-red-800"
-                              : ingredient.stock < 50
-                              ? "bg-orange-100 text-orange-800"
-                              : ingredient.stock < 150
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
-                        >
-                          {ingredient.stock} kg
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-
-                  {/* Additional Information */}
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      CAS Number
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-600 font-mono text-xs"
-                      >
-                        {ingredient.casNumber || "N/A"}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      IFRA Limit
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-900"
-                      >
-                        {ingredient.ifraLimitPct
-                          ? `${ingredient.ifraLimitPct}%`
-                          : "N/A"}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Allergens
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-600 text-xs"
-                      >
-                        {ingredient.allergens?.length
-                          ? ingredient.allergens.join(", ")
-                          : "None"}
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr className="bg-gray-25">
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Favorite
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td key={ingredient.id} className="px-4 py-2">
-                        <span
-                          className={`text-lg ${
-                            ingredient.favorite
-                              ? "text-yellow-500"
-                              : "text-gray-300"
-                          }`}
-                        >
-                          {ingredient.favorite ? "★" : "☆"}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-
-                  <tr>
-                    <td className="px-4 py-2 font-medium text-gray-700">
-                      Last Updated
-                    </td>
-                    {selectedIngredients.map((ingredient) => (
-                      <td
-                        key={ingredient.id}
-                        className="px-4 py-2 text-gray-600 text-xs"
-                      >
-                        {new Date(ingredient.updatedAt).toLocaleDateString()}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Dialog Footer */}
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowCompareDialog(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    // Export comparison logic could be added here
-                    console.log("Exporting comparison:", selectedIngredients);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  Export Comparison
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CompareDialog
+        ingredients={selectedIngredients}
+        open={showCompareDialog}
+        onOpenChange={setShowCompareDialog}
+      />
     </div>
   );
 };

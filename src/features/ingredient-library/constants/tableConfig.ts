@@ -1,4 +1,4 @@
-import type { Ingredient } from '../model/types';
+// Removed unused import
 
 /**
  * Table Configuration Interface
@@ -270,7 +270,7 @@ export function getEnabledExportFormats(config: TableConfig): ExportFormat[] {
 export function isFeatureEnabled(config: TableConfig, feature: keyof TableConfig): boolean {
   const featureConfig = config[feature];
   return typeof featureConfig === 'object' && 'enabled' in featureConfig 
-    ? (featureConfig as any).enabled 
+    ? (featureConfig as { enabled: boolean }).enabled 
     : true;
 }
 

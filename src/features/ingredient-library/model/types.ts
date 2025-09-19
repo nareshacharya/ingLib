@@ -101,7 +101,7 @@ export interface CompareData {
     fields: Array<{
         key: keyof Ingredient;
         label: string;
-        format?: (value: any) => string;
+        format?: (value: unknown) => string;
     }>;
 }
 
@@ -162,7 +162,7 @@ export type GroupKey = "family" | "supplier" | "category" | null;
 // Configurable Filters
 export type FilterKind = "select" | "multiselect" | "range" | "switch" | "text";
 
-export interface FilterDef<T = any> {
+export interface FilterDef<T = string | number> {
     id: string;                  // e.g., "category"
     labelKey: string;            // i18n key or display label
     kind: FilterKind;

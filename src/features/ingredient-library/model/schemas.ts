@@ -1,6 +1,6 @@
 import type { Ingredient, IngredientStatus, IngredientType, StockLevel } from './types';
 
-export function isIngredient(obj: any): obj is Ingredient {
+export function isIngredient(obj: unknown): obj is Ingredient {
     return (
         typeof obj === 'object' &&
         obj !== null &&
@@ -30,7 +30,7 @@ export function isStockLevel(value: string): value is StockLevel {
     return ['High', 'Medium', 'Low', 'OutOfStock'].includes(value);
 }
 
-export function validateIngredient(obj: any): { isValid: boolean; errors: string[] } {
+export function validateIngredient(obj: unknown): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     if (!obj) {
@@ -94,7 +94,7 @@ export function validateIngredient(obj: any): { isValid: boolean; errors: string
         errors.push('IFRA limit percentage must be a number between 0 and 100 if provided');
     }
 
-    if (obj.allergens && (!Array.isArray(obj.allergens) || !obj.allergens.every((a: any) => typeof a === 'string'))) {
+    if (obj.allergens && (!Array.isArray(obj.allergens) || !obj.allergens.every((a: unknown) => typeof a === 'string'))) {
         errors.push('Allergens must be an array of strings if provided');
     }
 

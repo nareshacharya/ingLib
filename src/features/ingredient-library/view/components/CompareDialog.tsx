@@ -24,29 +24,29 @@ const compareFields = [
   {
     key: "costPerKg" as keyof Ingredient,
     label: "Cost/kg",
-    format: (value: any) => formatCurrency(value as number),
+    format: (value: unknown) => formatCurrency(value as number),
   },
   {
     key: "stock" as keyof Ingredient,
     label: "Stock",
-    format: (value: any) => `${value} kg`,
+    format: (value: unknown) => `${value} kg`,
   },
   { key: "casNumber" as keyof Ingredient, label: "CAS Number" },
   {
     key: "ifraLimitPct" as keyof Ingredient,
     label: "IFRA Limit",
-    format: (value: any) => (value ? formatPercentage(value as number) : "N/A"),
+    format: (value: unknown) => (value ? formatPercentage(value as number) : "N/A"),
   },
   {
     key: "allergens" as keyof Ingredient,
     label: "Allergens",
-    format: (value: any) =>
+    format: (value: unknown) =>
       Array.isArray(value) ? value.join(", ") || "None" : "None",
   },
   {
     key: "updatedAt" as keyof Ingredient,
     label: "Updated",
-    format: (value: any) => formatDate(value as string),
+    format: (value: unknown) => formatDate(value as string),
   },
 ];
 
