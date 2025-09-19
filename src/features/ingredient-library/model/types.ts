@@ -25,6 +25,14 @@ export interface Ingredient {
     updatedAt: string;
     parentId?: IngredientId;
     subRows?: Ingredient[];
+    // Ingredient ID configuration
+    ingredientId?: {
+        value: string;
+        displayValue?: string;
+        action: 'url' | 'popup';
+        url?: string;
+        popupTitle?: string;
+    };
 }
 
 // Legacy interface - kept for backward compatibility
@@ -68,6 +76,7 @@ export interface TableState {
 
 export type ColumnKey =
     | 'select'
+    | 'ingredientId'
     | 'name'
     | 'category'
     | 'family'
@@ -134,6 +143,7 @@ export interface SortSpec {
 // Configurable Columns
 export type ColumnDefKey =
     | "select"
+    | "ingredientId"
     | "favorite"
     | "name"
     | "category"

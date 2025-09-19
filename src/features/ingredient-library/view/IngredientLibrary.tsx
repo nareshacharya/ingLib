@@ -26,7 +26,9 @@ import { DEFAULT_MASTER_CONFIG, ConfigManager, type MasterConfig } from "../cons
 import { UIConfigHelper } from "../constants/uiConfig";
 import { CompareDialog } from "./components/CompareDialog";
 import { ConfigPage } from "./components/ConfigPage";
+import { IngredientDetailsModal } from "./components/IngredientDetailsModal";
 import { Icon } from "../theme/icons";
+import { filterPanelStyles, layoutStyles, statsStyles, badgeStyles, columnManagerStyles } from "../styles";
 
 // Initialize data source - can be configured dynamically
 const dataSource = new LocalDataSource();
@@ -66,6 +68,8 @@ export const IngredientLibrary: React.FC = () => {
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showIngredientDetails, setShowIngredientDetails] = useState(false);
+  const [selectedIngredientForDetails, setSelectedIngredientForDetails] = useState<Ingredient | null>(null);
 
   // Configuration handlers
   const handleConfigChange = useCallback((newConfig: MasterConfig) => {
@@ -271,6 +275,45 @@ export const IngredientLibrary: React.FC = () => {
         size: 32,
       },
 
+      // Ingredient ID column - clickable with configurable action
+      {
+        accessorKey: "ingredientId",
+        header: "ID",
+        cell: ({ row, getValue }) => {
+          const ingredientId = getValue() as Ingredient['ingredientId'];
+          const ingredient = row.original as Ingredient;
+          
+          if (!ingredientId) {
+            return (
+              <span className="text-xs text-gray-400">
+                {ingredient.id}
+              </span>
+            );
+          }
+
+          const handleClick = () => {
+            if (ingredientId.action === 'url' && ingredientId.url) {
+              window.open(ingredientId.url, '_blank');
+            } else if (ingredientId.action === 'popup') {
+              setSelectedIngredientForDetails(ingredient);
+              setShowIngredientDetails(true);
+            }
+          };
+
+          return (
+            <span
+              onClick={handleClick}
+              className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline transition-colors duration-200 cursor-pointer"
+              title={`Click to ${ingredientId.action === 'url' ? 'view details' : 'show popup'}`}
+            >
+              {ingredientId.displayValue || ingredientId.value}
+            </span>
+          );
+        },
+        size: 80,
+        enableSorting: false,
+      },
+
       // Compact name column with hierarchical indentation
       {
         accessorKey: "name",
@@ -313,23 +356,16 @@ export const IngredientLibrary: React.FC = () => {
         filterFn: "arrIncludesSome",
       },
 
-      // Compact status column with smaller badges
+      // Compact status column with enhanced badges
       {
         accessorKey: "status",
         header: "Status",
         cell: ({ getValue }) => {
           const status = getValue() as string;
-          const colorClass =
-            {
-              Active: "bg-green-100 text-green-700",
-              Inactive: "bg-gray-100 text-gray-700",
-              Limited: "bg-orange-100 text-orange-700",
-            }[status] || "bg-gray-100 text-gray-700";
+          const statusStyle = badgeStyles.status[status as keyof typeof badgeStyles.status] || badgeStyles.status.Inactive;
 
           return (
-            <span
-              className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${colorClass}`}
-            >
+            <span className={`${badgeStyles.base} ${statusStyle}`}>
               {status}
             </span>
           );
@@ -338,21 +374,16 @@ export const IngredientLibrary: React.FC = () => {
         filterFn: "arrIncludesSome",
       },
 
-      // Compact type column
+      // Compact type column with enhanced badges
       {
         accessorKey: "type",
         header: "Type",
         cell: ({ getValue }) => {
           const type = getValue() as string;
-          const colorClass =
-            type === "Natural"
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-blue-100 text-blue-700";
+          const typeStyle = badgeStyles.type[type as keyof typeof badgeStyles.type] || badgeStyles.type.Synthetic;
 
           return (
-            <span
-              className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${colorClass}`}
-            >
+            <span className={`${badgeStyles.base} ${typeStyle}`}>
               {type}
             </span>
           );
@@ -392,22 +423,22 @@ export const IngredientLibrary: React.FC = () => {
         size: 70,
       },
 
-      // Compact stock column
+      // Compact stock column with enhanced badges
       {
         accessorKey: "stock",
         header: "Stock",
         cell: ({ getValue }) => {
           const stock = getValue() as number;
-          let colorClass = "bg-green-100 text-green-700";
+          let stockLevel: keyof typeof badgeStyles.stockLevel = "High";
 
-          if (stock === 0) colorClass = "bg-red-100 text-red-700";
-          else if (stock < 50) colorClass = "bg-orange-100 text-orange-700";
-          else if (stock < 150) colorClass = "bg-yellow-100 text-yellow-700";
+          if (stock === 0) stockLevel = "OutOfStock";
+          else if (stock < 50) stockLevel = "Low";
+          else if (stock < 150) stockLevel = "Medium";
+
+          const stockStyle = badgeStyles.stockLevel[stockLevel];
 
           return (
-            <span
-              className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded ${colorClass}`}
-            >
+            <span className={`${badgeStyles.base} ${stockStyle}`}>
               {stock}kg
             </span>
           );
@@ -503,10 +534,10 @@ export const IngredientLibrary: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen w-full space-y-4 md:space-y-6">
+    <div className={layoutStyles.mainContainer}>
       {/* Header - Conditional based on UI config */}
       {UIConfigHelper.shouldShowComponent(uiConfig, 'header') && (
-        <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 px-4 md:px-6">
+        <div className={`flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0 ${layoutStyles.sectionSpacing}`}>
           <div className="flex-1">
             {UIConfigHelper.getHeaderConfig(uiConfig).showTitle && (
               <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl">
@@ -538,35 +569,35 @@ export const IngredientLibrary: React.FC = () => {
 
       {/* Stats Bar - Conditional based on UI config */}
       {UIConfigHelper.shouldShowComponent(uiConfig, 'stats') && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4 px-4 md:px-6">
+        <div className={statsStyles.container}>
           {UIConfigHelper.getStatsConfig(uiConfig).showTotal && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-              <div className="text-sm text-gray-600">Total Ingredients</div>
+            <div className={statsStyles.stat}>
+              <div className={statsStyles.statValue}>{stats.total}</div>
+              <div className={statsStyles.statLabel}>Total Ingredients</div>
             </div>
           )}
           {UIConfigHelper.getStatsConfig(uiConfig).showActive && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-bold text-green-600">
+            <div className={statsStyles.stat}>
+              <div className={`${statsStyles.statValue} text-emerald-600`}>
                 {stats.active}
               </div>
-              <div className="text-sm text-gray-600">Active</div>
+              <div className={statsStyles.statLabel}>Active</div>
             </div>
           )}
           {UIConfigHelper.getStatsConfig(uiConfig).showFavorites && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-bold text-yellow-600">
+            <div className={statsStyles.stat}>
+              <div className={`${statsStyles.statValue} text-amber-600`}>
                 {stats.favorites}
               </div>
-              <div className="text-sm text-gray-600">Favorites</div>
+              <div className={statsStyles.statLabel}>Favorites</div>
             </div>
           )}
           {UIConfigHelper.getStatsConfig(uiConfig).showLowStock && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="text-2xl font-bold text-red-600">
+            <div className={statsStyles.stat}>
+              <div className={`${statsStyles.statValue} text-red-600`}>
                 {stats.lowStock}
               </div>
-              <div className="text-sm text-gray-600">Low Stock</div>
+              <div className={statsStyles.statLabel}>Low Stock</div>
             </div>
           )}
         </div>
@@ -574,13 +605,13 @@ export const IngredientLibrary: React.FC = () => {
 
       {/* Enhanced Controls Toolbar - Conditional based on UI config */}
       {UIConfigHelper.shouldShowComponent(uiConfig, 'toolbar') && (
-        <div className="px-4 md:px-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
+        <div className={layoutStyles.sectionSpacing}>
+          <div className="bg-white rounded-lg border border-gray-200/60 overflow-hidden w-full">
           {/* Primary Toolbar */}
-          <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-4 border-b border-gray-200 sm:px-6">
-            <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:space-y-0 lg:gap-4">
+          <div className="bg-gradient-to-r from-gray-50/80 to-gray-100/80 px-4 py-3 border-b border-gray-200/60">
+            <div className="flex flex-col space-y-3 lg:flex-row lg:items-center lg:space-y-0 lg:gap-3">
               {/* Left Section - Search and Quick Actions */}
-              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:gap-3 flex-1">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2 flex-1">
                 {/* Enhanced Search - Conditional */}
                 {UIConfigHelper.getToolbarConfig(uiConfig).showSearch && (
                   <div className="relative flex-1 w-full sm:max-w-md">
@@ -719,9 +750,9 @@ export const IngredientLibrary: React.FC = () => {
               </div>
 
               {/* Right Section - Stats and Selection Actions */}
-              <div className="flex flex-col space-y-3 sm:flex-row sm:items-center sm:space-y-0 sm:gap-4">
+              <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:gap-2">
                 {/* Stats Display */}
-                <div className="flex items-center gap-4 text-sm text-gray-600 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                <div className="flex items-center gap-2 text-sm text-gray-600 bg-white px-3 py-1.5 rounded-md border border-gray-200/60 shadow-sm">
                   <div className="flex items-center gap-1">
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <span className="font-medium">
@@ -733,7 +764,7 @@ export const IngredientLibrary: React.FC = () => {
 
                 {/* Selection Actions */}
                 {selectedIngredients.length > 0 && (
-                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border border-gray-200/60 shadow-sm">
                     <div className="flex items-center gap-1">
                       <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                       <span className="text-sm font-medium text-gray-700">
@@ -746,7 +777,7 @@ export const IngredientLibrary: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setShowCompareDialog(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm"
+                        className="flex items-center gap-1 px-2.5 py-1 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-sm"
                       >
                         <svg
                           className="w-4 h-4"
@@ -796,48 +827,13 @@ export const IngredientLibrary: React.FC = () => {
 
       {/* Advanced Filters Panel */}
       {showFilters && (
-        <div className="px-4 md:px-6">
-          <div className="bg-gray-50 border-b border-gray-200 w-full">
-            <div className="px-4 py-5 sm:px-6">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-gray-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
-                  />
-                </svg>
-                Advanced Filters
-              </h4>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setColumnFilters([{ id: "favorite", value: true }]);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 transition-colors"
-                >
-                  <span className="text-amber-500">★</span>
-                  Favorites Only
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setColumnFilters([]);
-                    setGlobalFilter("");
-                    setGrouping([]);
-                  }}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
-                >
+        <div className={layoutStyles.sectionSpacing}>
+          <div className={filterPanelStyles.container}>
+            <div className={filterPanelStyles.header}>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className={filterPanelStyles.title}>
                   <svg
-                    className="w-3 h-3"
+                    className={filterPanelStyles.titleIcon}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -846,143 +842,213 @@ export const IngredientLibrary: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z"
                     />
                   </svg>
-                  Reset All
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {FILTER_CONFIG.filter((config) => config.enabled).map(
-                (filterConfig) => (
-                  <div
-                    key={filterConfig.id}
-                    className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
+                  Advanced Filters
+                </h4>
+                <div className={filterPanelStyles.quickActions}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setColumnFilters([{ id: "favorite", value: true }]);
+                    }}
+                    className={`${filterPanelStyles.quickButton} ${filterPanelStyles.quickButtonFavorites}`}
                   >
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      <Icon name={filterConfig.icon} size="sm" className="text-gray-500" />
-                      {filterConfig.label}
-                    </label>
+                    <span className="text-amber-500">★</span>
+                    Favorites Only
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setColumnFilters([]);
+                      setGlobalFilter("");
+                      setGrouping([]);
+                    }}
+                    className={`${filterPanelStyles.quickButton} ${filterPanelStyles.quickButtonReset}`}
+                  >
+                    <Icon name="clear" size="xs" />
+                    Reset All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters(false)}
+                    className={`${filterPanelStyles.quickButton} ${filterPanelStyles.quickButtonClose}`}
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                    Close
+                  </button>
+                </div>
+              </div>
 
-                    {filterConfig.type === "checkbox" ? (
-                      <div className="space-y-2">
-                        {filterConfig.options.map((option) => {
-                          const isSelected = (
-                            (columnFilters.find(
-                              (f) => f.id === filterConfig.id
-                            )?.value as string[]) || []
-                          ).includes(option.value);
-                          return (
-                            <label
-                              key={option.value}
-                              className="flex items-center gap-2 cursor-pointer"
+              <div className={filterPanelStyles.grid}>
+                {FILTER_CONFIG.filter((config) => config.enabled).map(
+                  (filterConfig) => (
+                    <div
+                      key={filterConfig.id}
+                      className={filterPanelStyles.filterCard}
+                    >
+                      <label className={filterPanelStyles.filterLabel}>
+                        <Icon name={filterConfig.icon} size="sm" className={filterPanelStyles.filterIcon} />
+                        {filterConfig.label}
+                      </label>
+
+                      {filterConfig.type === "checkbox" ? (
+                        <div className={filterPanelStyles.checkboxContainer}>
+                          {filterConfig.options.map((option) => {
+                            const isSelected = (
+                              (columnFilters.find(
+                                (f) => f.id === filterConfig.id
+                              )?.value as string[]) || []
+                            ).includes(option.value);
+                            return (
+                              <label
+                                key={option.value}
+                                className={filterPanelStyles.checkboxItem}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const currentValues =
+                                      (columnFilters.find(
+                                        (f) => f.id === filterConfig.id
+                                      )?.value as string[]) || [];
+                                    const newValues = e.target.checked
+                                      ? [...currentValues, option.value]
+                                      : currentValues.filter(
+                                          (v) => v !== option.value
+                                        );
+                                    setColumnFilters((prev) =>
+                                      prev
+                                        .filter((f) => f.id !== filterConfig.id)
+                                        .concat(
+                                          newValues.length > 0
+                                            ? [
+                                                {
+                                                  id: filterConfig.id,
+                                                  value: newValues,
+                                                },
+                                              ]
+                                            : []
+                                        )
+                                    );
+                                  }}
+                                  className={filterPanelStyles.checkbox}
+                                />
+                                <span className={filterPanelStyles.checkboxLabel}>
+                                  {option.label}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className={filterPanelStyles.selectContainer}>
+                          <select
+                            multiple
+                            size={4}
+                            value={
+                              (columnFilters.find((f) => f.id === filterConfig.id)
+                                ?.value as string[]) || []
+                            }
+                            onChange={(e) => {
+                              const values = Array.from(
+                                e.target.selectedOptions,
+                                (option) => option.value
+                              );
+                              setColumnFilters((prev) =>
+                                prev
+                                  .filter((f) => f.id !== filterConfig.id)
+                                  .concat(
+                                    values.length > 0
+                                      ? [{ id: filterConfig.id, value: values }]
+                                      : []
+                                  )
+                              );
+                            }}
+                            className={filterPanelStyles.select}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const currentValues =
-                                    (columnFilters.find(
-                                      (f) => f.id === filterConfig.id
-                                    )?.value as string[]) || [];
-                                  const newValues = e.target.checked
-                                    ? [...currentValues, option.value]
-                                    : currentValues.filter(
-                                        (v) => v !== option.value
-                                      );
-                                  setColumnFilters((prev) =>
-                                    prev
-                                      .filter((f) => f.id !== filterConfig.id)
-                                      .concat(
-                                        newValues.length > 0
-                                          ? [
-                                              {
-                                                id: filterConfig.id,
-                                                value: newValues,
-                                              },
-                                            ]
-                                          : []
-                                      )
-                                  );
-                                }}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                              <span className="text-sm text-gray-700">
-                                {option.label}
-                              </span>
-                            </label>
-                          );
-                        })}
+                              {filterConfig.options.map((option) => (
+                                <option
+                                  key={option.value}
+                                  value={option.value}
+                                  className={filterPanelStyles.selectOption}
+                                >
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
                       </div>
-                    ) : (
-                      <select
-                        multiple
-                        size={4}
-                        value={
-                          (columnFilters.find((f) => f.id === filterConfig.id)
-                            ?.value as string[]) || []
-                        }
-                        onChange={(e) => {
-                          const values = Array.from(
-                            e.target.selectedOptions,
-                            (option) => option.value
-                          );
-                          setColumnFilters((prev) =>
-                            prev
-                              .filter((f) => f.id !== filterConfig.id)
-                              .concat(
-                                values.length > 0
-                                  ? [{ id: filterConfig.id, value: values }]
-                                  : []
-                              )
-                          );
-                        }}
-                        className="w-full text-xs border-0 rounded-md bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all duration-200"
-                        >
-                          {filterConfig.options.map((option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                              className="py-1"
-                            >
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    </div>
-                  )
-                )}
+                    )
+                  )}
+                </div>
               </div>
             </div>
-          </div>
           </div>
         )}
 
         {/* Column Manager Panel */}
         {showColumnManager && (
-          <div className="px-4 md:px-6">
-            <div className="bg-gray-50 border-b border-gray-200 w-full">
-              <div className="px-4 py-5 sm:px-6">
-              <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg
-                  className="w-4 h-4 text-gray-600"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"
-                  />
-                </svg>
-                Column Visibility
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className={layoutStyles.sectionSpacing}>
+            <div className={columnManagerStyles.container}>
+              <div className={columnManagerStyles.header}>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className={columnManagerStyles.title}>
+                    <svg
+                      className={columnManagerStyles.titleIcon}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2h2a2 2 0 002-2z"
+                      />
+                    </svg>
+                    Column Visibility
+                  </h4>
+                  <div className={columnManagerStyles.quickActions}>
+                    <button
+                      type="button"
+                      onClick={() => setShowColumnManager(false)}
+                      className={`${columnManagerStyles.quickButton} ${columnManagerStyles.quickButtonClose}`}
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className={columnManagerStyles.grid}>
                 {table.getAllLeafColumns().map((column) => {
                   const isVisible = column.getIsVisible();
                   return (
@@ -1013,12 +1079,11 @@ export const IngredientLibrary: React.FC = () => {
               </div>
             </div>
           </div>
-          </div>
         )}
 
       {/* Compact Table */}
-      <div className="px-4 md:px-6">
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden w-full">
+      <div className={layoutStyles.sectionSpacing}>
+        <div className="bg-white rounded-lg border border-gray-200/60 overflow-hidden w-full">
         <div className="overflow-x-auto w-full">
           <table className="min-w-full divide-y divide-gray-200 text-xs">
             <thead className="bg-gray-50">
@@ -1080,7 +1145,7 @@ export const IngredientLibrary: React.FC = () => {
 
       {/* Pagination - Conditional based on UI config */}
       {UIConfigHelper.shouldShowComponent(uiConfig, 'pagination') && (
-        <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 px-4 md:px-6">
+        <div className={`flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 ${layoutStyles.sectionSpacing}`}>
           {/* Page Size Selector - Conditional */}
           {UIConfigHelper.getPaginationConfig(uiConfig).showPageSizeSelector && (
             <div className="flex items-center gap-2">
@@ -1155,6 +1220,18 @@ export const IngredientLibrary: React.FC = () => {
         open={showCompareDialog}
         onOpenChange={setShowCompareDialog}
       />
+
+      {/* Ingredient Details Modal */}
+      {selectedIngredientForDetails && (
+        <IngredientDetailsModal
+          ingredient={selectedIngredientForDetails}
+          isOpen={showIngredientDetails}
+          onClose={() => {
+            setShowIngredientDetails(false);
+            setSelectedIngredientForDetails(null);
+          }}
+        />
+      )}
     </div>
   );
 };
