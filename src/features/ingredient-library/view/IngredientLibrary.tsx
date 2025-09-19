@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   flexRender,
   getCoreRowModel,
@@ -22,10 +22,16 @@ import type { Ingredient } from "../model/types";
 import { AdvancedTableController } from "../controller/advancedTableController";
 import { Icon } from "../theme/icons";
 import { FILTER_CONFIG } from "../constants/filterConfig";
+import { DEFAULT_TABLE_CONFIG, getSelectionConfig, getFilterConfig } from "../constants/tableConfig";
 
 const dataSource = new LocalDataSource();
 
 export const IngredientLibrary: React.FC = () => {
+  // Table configuration - easily modify behavior here
+  const tableConfig = DEFAULT_TABLE_CONFIG;
+  const selectionConfig = getSelectionConfig(tableConfig);
+  const filterConfig = getFilterConfig(tableConfig);
+
   // Data state
   const [data, setData] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +42,7 @@ export const IngredientLibrary: React.FC = () => {
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: tableConfig.pagination.defaultPageSize,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState("");
@@ -47,6 +53,31 @@ export const IngredientLibrary: React.FC = () => {
   const [showColumnManager, setShowColumnManager] = useState(false);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Custom row selection handler that respects configuration
+  const handleRowSelectionChange = useCallback((updater: any) => {
+    setRowSelection((prevSelection) => {
+      const newSelection = typeof updater === 'function' ? updater(prevSelection) : updater;
+      
+      // If child row selection is disabled, filter out child rows
+      if (!selectionConfig.enableChildRowSelection) {
+        const filteredSelection: RowSelectionState = {};
+        
+        Object.keys(newSelection).forEach(rowId => {
+          // Check if this is a child row by looking at the data
+          const ingredient = data.find(item => item.id === rowId);
+          if (ingredient && !ingredient.parentId) {
+            // Only allow parent rows to be selected
+            filteredSelection[rowId] = newSelection[rowId];
+          }
+        });
+        
+        return filteredSelection;
+      }
+      
+      return newSelection;
+    });
+  }, [selectionConfig.enableChildRowSelection, data]);
 
   // Load data
   useEffect(() => {
@@ -125,8 +156,8 @@ export const IngredientLibrary: React.FC = () => {
         enableHiding: false,
       },
 
-      // Compact selection column
-      {
+      // Compact selection column - only show if row selection is enabled
+      ...(selectionConfig.enableRowSelection ? [{
         id: "select",
         header: ({ table }) => (
           <input
@@ -139,18 +170,28 @@ export const IngredientLibrary: React.FC = () => {
             className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
         ),
-        cell: ({ row }) => (
-          <input
-            type="checkbox"
-            checked={row.getIsSelected()}
-            onChange={row.getToggleSelectedHandler()}
-            className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-        ),
+        cell: ({ row }) => {
+          // Check if this is a child row and child selection is disabled
+          const isChildRow = !!(row.original as Ingredient).parentId;
+          const canSelect = selectionConfig.enableChildRowSelection || !isChildRow;
+          
+          return (
+            <input
+              type="checkbox"
+              checked={row.getIsSelected()}
+              disabled={!canSelect}
+              onChange={row.getToggleSelectedHandler()}
+              className={`h-3.5 w-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${
+                !canSelect ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
+              title={!canSelect ? 'Child row selection is disabled' : ''}
+            />
+          );
+        },
         size: 32,
         enableSorting: false,
         enableHiding: false,
-      },
+      }] : []),
 
       // Compact favorite column
       {
@@ -336,7 +377,7 @@ export const IngredientLibrary: React.FC = () => {
     onColumnVisibilityChange: setColumnVisibility,
     onExpandedChange: setExpanded,
     onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: handleRowSelectionChange,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
     onGroupingChange: setGrouping,
@@ -353,15 +394,16 @@ export const IngredientLibrary: React.FC = () => {
     getSubRows: (row) => row.subRows || [],
     getRowCanExpand: (row) => !!(row.subRows && row.subRows.length > 0),
 
-    // Other settings
-    enableRowSelection: true,
-    enableExpanding: true,
-    enableSorting: true,
-    enableHiding: true,
-    enableFilters: true,
-    enableColumnFilters: true,
-    enableGlobalFilter: true,
-    enableGrouping: true,
+    // Row selection configuration - configurable through tableConfig
+    enableRowSelection: selectionConfig.enableRowSelection,
+    enableSubRowSelection: selectionConfig.enableChildRowSelection, // Configurable child row selection
+    enableExpanding: tableConfig.expansion.enabled,
+    enableSorting: tableConfig.sorting.enabled,
+    enableHiding: tableConfig.columns.enableColumnVisibility,
+    enableFilters: filterConfig.enabled,
+    enableColumnFilters: filterConfig.enabled,
+    enableGlobalFilter: filterConfig.enabled,
+    enableGrouping: tableConfig.grouping.enabled,
     globalFilterFn: "includesString",
     getRowId: (row) => row.id,
   });

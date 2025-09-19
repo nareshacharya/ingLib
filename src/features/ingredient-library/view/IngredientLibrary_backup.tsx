@@ -502,6 +502,7 @@ export const IngredientLibrary: React.FC = () => {
     },
     enableRowSelection: true,
     enableMultiRowSelection: true,
+    enableSubRowSelection: false, // Disable automatic sub-row selection
     enableSorting: true,
     enableGrouping: true,
     enableExpanding: true,

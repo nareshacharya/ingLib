@@ -18,10 +18,15 @@ import { LocalDataSource } from "../services/localDataSource";
 import type { Ingredient } from "../model/types";
 import { AdvancedTableController } from "../controller/advancedTableController";
 import { Icon } from "../theme/icons";
+import { DEFAULT_TABLE_CONFIG, getSelectionConfig } from "../constants/tableConfig";
 
 const dataSource = new LocalDataSource();
 
 export const IngredientLibrary: React.FC = () => {
+  // Table configuration
+  const tableConfig = DEFAULT_TABLE_CONFIG;
+  const selectionConfig = getSelectionConfig(tableConfig);
+
   // Data state
   const [data, setData] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +37,7 @@ export const IngredientLibrary: React.FC = () => {
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
-    pageSize: 25,
+    pageSize: tableConfig.pagination.defaultPageSize,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [globalFilter, setGlobalFilter] = useState("");
@@ -322,8 +327,9 @@ export const IngredientLibrary: React.FC = () => {
     getSubRows: (row) => row.subRows || [],
     getRowCanExpand: (row) => !!(row.subRows && row.subRows.length > 0),
 
-    // Other settings
-    enableRowSelection: true,
+    // Row selection configuration - configurable through tableConfig
+    enableRowSelection: selectionConfig.enableRowSelection,
+    enableSubRowSelection: selectionConfig.enableChildRowSelection, // Configurable child row selection
     enableExpanding: true,
     enableSorting: true,
     enableHiding: true,
