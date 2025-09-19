@@ -26,6 +26,7 @@ import { DEFAULT_MASTER_CONFIG, ConfigManager, type MasterConfig } from "../cons
 import { UIConfigHelper } from "../constants/uiConfig";
 import { CompareDialog } from "./components/CompareDialog";
 import { ConfigPage } from "./components/ConfigPage";
+import { Icon } from "../theme/icons";
 
 // Initialize data source - can be configured dynamically
 const dataSource = new LocalDataSource();
@@ -520,16 +521,18 @@ export const IngredientLibrary: React.FC = () => {
             )}
           </div>
           
-          {/* Configuration Button */}
-          <div className="flex-shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowConfigPage(true)}
-              className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 sm:w-auto"
-            >
-              ⚙️ Configure Table
-            </button>
-          </div>
+          {/* Configuration Button - Hidden for production, available for developers */}
+          {import.meta.env.DEV && (
+            <div className="flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowConfigPage(true)}
+                className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 sm:w-auto"
+              >
+                ⚙️ Configure Table (Dev Only)
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -859,7 +862,7 @@ export const IngredientLibrary: React.FC = () => {
                     className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm"
                   >
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3">
-                      {filterConfig.icon}
+                      <Icon name={filterConfig.icon} size="sm" className="text-gray-500" />
                       {filterConfig.label}
                     </label>
 

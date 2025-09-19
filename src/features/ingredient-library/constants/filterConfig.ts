@@ -4,6 +4,7 @@ import {
     typeOptions,
     supplierOptions,
 } from "./filterOptions";
+import type { IconName } from "../theme/iconTypes";
 
 /**
  * Filter Configuration Interface
@@ -14,7 +15,7 @@ export type FilterType = "checkbox" | "multiselect" | "select" | "range" | "text
 export interface FilterConfig {
     id: string; // Column ID that this filter targets
     label: string; // Display name for the filter
-    icon: string; // Icon component to display
+    icon: IconName; // Icon component to display
     type: FilterType; // How the filter should be rendered
     options: { value: string; label: string }[]; // Available options for the filter
     enabled: boolean; // Whether this filter should be shown
@@ -48,9 +49,7 @@ export const FILTER_CONFIG: FilterConfig[] = [
     {
         id: 'category',
         label: 'Category',
-        icon: `<svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14-5v12a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2z"></path>
-        </svg>`,
+        icon: 'flask', // Use flask icon for ingredient categories (chemistry/perfumery context)
         type: 'checkbox', // Changed from 'multiselect' to match Status and Type
         options: categoryOptions,
         enabled: true
@@ -58,9 +57,7 @@ export const FILTER_CONFIG: FilterConfig[] = [
     {
         id: 'status',
         label: 'Status',
-        icon: `<svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>`,
+        icon: 'statusIcon', // Use status icon (checkmark in circle) for active/inactive status
         type: 'checkbox',
         options: statusOptions,
         enabled: true
@@ -68,9 +65,7 @@ export const FILTER_CONFIG: FilterConfig[] = [
     {
         id: 'type',
         label: 'Type',
-        icon: `<svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-        </svg>`,
+        icon: 'leaf', // Use leaf icon for natural vs synthetic (nature context)
         type: 'checkbox',
         options: typeOptions,
         enabled: true
@@ -78,9 +73,7 @@ export const FILTER_CONFIG: FilterConfig[] = [
     {
         id: 'supplier',
         label: 'Supplier',
-        icon: `<svg class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-        </svg>`,
+        icon: 'factory', // Use factory icon for suppliers (manufacturing context)
         type: 'checkbox', // Changed from 'multiselect' to match Status and Type
         options: supplierOptions,
         enabled: true

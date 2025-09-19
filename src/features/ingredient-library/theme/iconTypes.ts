@@ -27,4 +27,15 @@ export type IconName =
     | 'eyeOff'
     | 'compare'
     | 'expand'
-    | 'collapse';
+    | 'collapse'
+    | 'folder'
+    | 'tag'
+    | 'building'
+    | 'chart'
+    | 'categoryIcon'
+    | 'statusIcon'
+    | 'typeIcon'
+    | 'supplierIcon'
+    | 'flask'
+    | 'leaf'
+    | 'factory';
