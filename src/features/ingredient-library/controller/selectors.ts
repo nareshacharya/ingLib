@@ -190,7 +190,7 @@ export function exportToCSV(
 
     const rows = ingredients.map(ingredient =>
         columns.map(column => {
-            const value = (ingredient as Record<string, unknown>)[column];
+            const value = (ingredient as any)[column];
 
             if (Array.isArray(value)) {
                 return `"${value.join('; ')}"`;

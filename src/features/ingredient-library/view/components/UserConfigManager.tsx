@@ -15,7 +15,6 @@ export const UserConfigManager: React.FC<UserConfigManagerProps> = ({
     preferences,
     isLoading,
     error,
-    savePreferences,
     clearPreferences,
     exportPreferences,
     importPreferences,
