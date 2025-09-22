@@ -27,17 +27,31 @@ import { UIConfigHelper } from "../constants/uiConfig";
 import { CompareDialog } from "./components/CompareDialog";
 import { ConfigPage } from "./components/ConfigPage";
 import { IngredientDetailsModal } from "./components/IngredientDetailsModal";
+import { UserConfigManager } from "./components/UserConfigManager";
 import { Icon } from "../theme/icons";
 import { filterPanelStyles, layoutStyles, statsStyles, badgeStyles, columnManagerStyles } from "../styles";
+import { useUserConfig } from "../hooks/useUserConfig";
 
 // Initialize data source - can be configured dynamically
 const dataSource = new LocalDataSource();
 
 export const IngredientLibrary: React.FC = () => {
+  // User configuration management
+  const {
+    preferences,
+    isLoading: configLoading,
+    error: configError,
+    getTableState,
+    updateTableState,
+    getUIState,
+    updateUIState,
+  } = useUserConfig();
+
   // Configuration management
   const [configManager] = useState(() => new ConfigManager(DEFAULT_MASTER_CONFIG));
   const [masterConfig, setMasterConfig] = useState<MasterConfig>(configManager.getConfig());
   const [showConfigPage, setShowConfigPage] = useState(false);
+  const [showUserConfigManager, setShowUserConfigManager] = useState(false);
   
   // Table configuration - now from master config
   const tableConfig = masterConfig.table;
@@ -49,27 +63,54 @@ export const IngredientLibrary: React.FC = () => {
   const [data, setData] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Table state
-  const [sorting, setSorting] = useState<SortingState>([]);
+  // Table state - initialized from user preferences
+  const savedTableState = getTableState();
+  const savedUIState = getUIState();
+  
+  const [sorting, setSorting] = useState<SortingState>(savedTableState.sorting);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     expander: true, // Force expander column to be visible
+    ...savedTableState.columnVisibility,
   });
-  const [expanded, setExpanded] = useState<ExpandedState>({});
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: tableConfig.pagination.defaultPageSize,
-  });
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [globalFilter, setGlobalFilter] = useState("");
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [grouping, setGrouping] = useState<GroupingState>([]);
+  const [expanded, setExpanded] = useState<ExpandedState>(savedTableState.expanded);
+  const [pagination, setPagination] = useState<PaginationState>(savedTableState.pagination);
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>(savedTableState.rowSelection);
+  const [globalFilter, setGlobalFilter] = useState(savedTableState.globalFilter);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(savedTableState.columnFilters);
+  const [grouping, setGrouping] = useState<GroupingState>(savedTableState.grouping);
 
-  // UI state
-  const [showColumnManager, setShowColumnManager] = useState(false);
+  // UI state - initialized from user preferences
+  const [showColumnManager, setShowColumnManager] = useState(savedUIState.showColumnManager);
   const [showCompareDialog, setShowCompareDialog] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(savedUIState.showFilters);
   const [showIngredientDetails, setShowIngredientDetails] = useState(false);
   const [selectedIngredientForDetails, setSelectedIngredientForDetails] = useState<Ingredient | null>(null);
+
+  // Auto-save table state changes
+  useEffect(() => {
+    if (!configLoading && preferences) {
+      updateTableState({
+        sorting,
+        columnVisibility,
+        pagination,
+        rowSelection,
+        globalFilter,
+        columnFilters,
+        grouping,
+        expanded,
+      });
+    }
+  }, [sorting, columnVisibility, pagination, rowSelection, globalFilter, columnFilters, grouping, expanded, configLoading, preferences, updateTableState]);
+
+  // Auto-save UI state changes
+  useEffect(() => {
+    if (!configLoading && preferences) {
+      updateUIState({
+        showFilters,
+        showColumnManager,
+      });
+    }
+  }, [showFilters, showColumnManager, configLoading, preferences, updateUIState]);
 
   // Configuration handlers
   const handleConfigChange = useCallback((newConfig: MasterConfig) => {
@@ -154,21 +195,7 @@ export const IngredientLibrary: React.FC = () => {
 
   // Create hierarchical data structure
   const hierarchicalData = useMemo(() => {
-    console.log("Building hierarchical data from:", data.length, "items");
     const result = AdvancedTableController.buildHierarchicalData(data);
-    console.log("Hierarchical result:", result.length, "items");
-
-    // Log parents with children
-    const parentsWithChildren = result.filter(
-      (item) => item.subRows && item.subRows.length > 0
-    );
-    console.log(
-      "Parents with children:",
-      parentsWithChildren.map(
-        (p) => `${p.id}: ${p.name} (${p.subRows?.length} children)`
-      )
-    );
-
     return result;
   }, [data]);
 
@@ -362,6 +389,11 @@ export const IngredientLibrary: React.FC = () => {
         header: "Status",
         cell: ({ getValue }) => {
           const status = getValue() as string;
+          
+          if (!status || status.trim() === '') {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
+
           const statusStyle = badgeStyles.status[status as keyof typeof badgeStyles.status] || badgeStyles.status.Inactive;
 
           return (
@@ -380,6 +412,11 @@ export const IngredientLibrary: React.FC = () => {
         header: "Type",
         cell: ({ getValue }) => {
           const type = getValue() as string;
+          
+          if (!type || type.trim() === '') {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
+
           const typeStyle = badgeStyles.type[type as keyof typeof badgeStyles.type] || badgeStyles.type.Synthetic;
 
           return (
@@ -396,14 +433,22 @@ export const IngredientLibrary: React.FC = () => {
       {
         accessorKey: "supplier",
         header: "Supplier",
-        cell: ({ getValue }) => (
-          <span
-            className="text-xs text-gray-600 truncate"
-            title={getValue() as string}
-          >
-            {getValue() as string}
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const supplier = getValue() as string;
+          
+          if (!supplier || supplier.trim() === '') {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
+
+          return (
+            <span
+              className="text-xs text-gray-600 truncate"
+              title={supplier}
+            >
+              {supplier}
+            </span>
+          );
+        },
         size: 90,
         filterFn: "arrIncludesSome",
       },
@@ -414,6 +459,11 @@ export const IngredientLibrary: React.FC = () => {
         header: "Cost/kg",
         cell: ({ getValue }) => {
           const value = getValue() as number;
+          
+          if (value === null || value === undefined || isNaN(value)) {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
+
           return (
             <span className="text-xs font-medium text-gray-900">
               ${value.toFixed(0)}
@@ -429,6 +479,11 @@ export const IngredientLibrary: React.FC = () => {
         header: "Stock",
         cell: ({ getValue }) => {
           const stock = getValue() as number;
+          
+          if (stock === null || stock === undefined || isNaN(stock)) {
+            return <span className="text-xs text-gray-400">—</span>;
+          }
+
           let stockLevel: keyof typeof badgeStyles.stockLevel = "High";
 
           if (stock === 0) stockLevel = "OutOfStock";
@@ -552,18 +607,32 @@ export const IngredientLibrary: React.FC = () => {
             )}
           </div>
           
-          {/* Configuration Button - Hidden for production, available for developers */}
-          {import.meta.env.DEV && (
-            <div className="flex-shrink-0">
+          {/* Configuration Buttons */}
+          <div className="flex-shrink-0 flex items-center gap-2">
+            {/* User Configuration Manager - Compact */}
+            <button
+              type="button"
+              onClick={() => setShowUserConfigManager(true)}
+              className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              title="Manage your personal settings and preferences"
+            >
+              <Icon name="settings" size="xs" className="mr-1.5" />
+              Settings
+            </button>
+            
+            {/* Developer Configuration Button - Hidden for production */}
+            {import.meta.env.DEV && (
               <button
                 type="button"
                 onClick={() => setShowConfigPage(true)}
-                className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 sm:w-auto"
+                className="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:text-gray-700 transition-colors"
+                title="Developer table configuration (development only)"
               >
-                ⚙️ Configure Table (Dev Only)
+                <Icon name="settings" size="xs" className="mr-1" />
+                Dev Config
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
 
@@ -1231,6 +1300,27 @@ export const IngredientLibrary: React.FC = () => {
             setSelectedIngredientForDetails(null);
           }}
         />
+      )}
+
+      {/* User Configuration Manager Modal */}
+      <UserConfigManager
+        isOpen={showUserConfigManager}
+        onClose={() => setShowUserConfigManager(false)}
+      />
+
+      {/* Configuration Error Display */}
+      {configError && (
+        <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg max-w-sm">
+          <div className="flex">
+            <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Configuration Error</h3>
+              <p className="text-sm text-red-700 mt-1">{configError}</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
