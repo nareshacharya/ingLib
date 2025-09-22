@@ -88,7 +88,7 @@ export class ApiDataSource implements IDataSource {
       }
       if (params.sortBy) {
         params.sortBy.forEach(sort => {
-          searchParams.append('sort', `${sort.field}:${sort.direction}`);
+          searchParams.append('sort', `${sort.id}:${sort.desc ? 'desc' : 'asc'}`);
         });
       }
       if (params.groupBy) searchParams.append('groupBy', params.groupBy);

@@ -8,8 +8,12 @@ export interface DataSourceResult<T> {
 }
 
 export interface ListOptions {
+    search?: string;
     filters?: Partial<IngredientFilters>;
     sortBy?: Array<{ id: string; desc: boolean }>;
+    groupBy?: string;
+    page?: number;
+    pageSize?: number;
     pagination?: {
         pageIndex: number;
         pageSize: number;

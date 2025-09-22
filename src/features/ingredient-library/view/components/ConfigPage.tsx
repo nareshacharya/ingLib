@@ -133,7 +133,7 @@ export const ConfigPage: React.FC<ConfigPageProps> = ({
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Presets</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {Object.entries(CONFIG_PRESETS).map(([key, preset]) => (
+          {Object.entries(CONFIG_PRESETS).map(([key]) => (
             <button
               key={key}
               type="button"

@@ -77,8 +77,8 @@ export class LocalDataSource implements IDataSource {
 
         return [...ingredients].sort((a, b) => {
             for (const sort of sortBy) {
-                let aValue = (a as Record<string, unknown>)[sort.id];
-                let bValue = (b as Record<string, unknown>)[sort.id];
+                let aValue = (a as unknown as Record<string, unknown>)[sort.id];
+                let bValue = (b as unknown as Record<string, unknown>)[sort.id];
 
                 // Handle special cases
                 if (sort.id === 'costPerKg' || sort.id === 'stock') {
@@ -90,8 +90,13 @@ export class LocalDataSource implements IDataSource {
                 }
 
                 let comparison = 0;
-                if (aValue < bValue) comparison = -1;
-                else if (aValue > bValue) comparison = 1;
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    if (aValue < bValue) comparison = -1;
+                    else if (aValue > bValue) comparison = 1;
+                } else if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    if (aValue < bValue) comparison = -1;
+                    else if (aValue > bValue) comparison = 1;
+                }
 
                 if (comparison !== 0) {
                     return sort.desc ? -comparison : comparison;
@@ -262,7 +267,7 @@ export class LocalDataSource implements IDataSource {
                 const csvHeaders = headers.join(',');
                 const csvRows = ingredients.map(ing =>
                     headers.map(header => {
-                        const value = (ing as Record<string, unknown>)[header];
+                        const value = (ing as unknown as Record<string, unknown>)[header];
                         if (Array.isArray(value)) return `"${value.join('; ')}"`;
                         if (typeof value === 'string' && value.includes(',')) return `"${value}"`;
                         return value;
@@ -308,13 +313,13 @@ export class LocalDataSource implements IDataSource {
         }
     }
 
-    async duplicate(id: IngredientId): Promise<DataSourceResult<Ingredient>> {
+    async duplicate(ingredientId: IngredientId): Promise<DataSourceResult<Ingredient>> {
         try {
-            const ingredient = this.ingredients.find(ing => ing.id === id);
+            const ingredient = this.ingredients.find(ing => ing.id === ingredientId);
             if (!ingredient) {
                 return {
                     success: false,
-                    error: `Ingredient with ID ${id} not found`,
+                    error: `Ingredient with ID ${ingredientId} not found`,
                 };
             }
 

@@ -1,5 +1,4 @@
 import type { MasterConfig } from '../constants/configManager';
-import type { Ingredient } from '../model/types';
 
 export type UserPreferences = {
   // Table state

@@ -16,10 +16,10 @@ export const ModalExamples: React.FC = () => {
     // Add your confirmation logic here
   };
 
-  const handleDelete = () => {
-    // User confirmed deletion
-    // Add your deletion logic here
-  };
+  // const handleDelete = () => {
+  //   // User confirmed deletion
+  //   // Add your deletion logic here
+  // };
 
   return (
     <div className="p-6 space-y-4">

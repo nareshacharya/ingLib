@@ -82,7 +82,7 @@ export function useUserConfig(options: UseUserConfigOptions = {}): UseUserConfig
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [configManager, setConfigManager] = useState<UserConfigManager | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<number | null>(null);
   const isSavingRef = useRef(false);
 
   // Initialize configuration manager
@@ -280,7 +280,9 @@ export function useUserConfig(options: UseUserConfigOptions = {}): UseUserConfig
       if (state.globalFilter !== undefined) updates.globalFilter = state.globalFilter;
       if (state.columnFilters !== undefined) updates.columnFilters = state.columnFilters;
       if (state.grouping !== undefined) updates.grouping = state.grouping;
-      if (state.expanded !== undefined) updates.expandedRows = state.expanded;
+      if (state.expanded !== undefined) {
+        updates.expandedRows = typeof state.expanded === 'boolean' ? {} : state.expanded;
+      }
 
       const newPreferences = { ...currentPrefs, ...updates };
       setPreferences(newPreferences);

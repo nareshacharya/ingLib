@@ -18,49 +18,14 @@ import type { IDataSource, DataSourceResult, ListOptions } from './dataSource';
  * - GET /api/v2/ingredients/filter-options - Get filter options
  */
 export class DxApiClient implements IDataSource {
-    private baseUrl: string;
-    private apiKey: string;
+    // private baseUrl: string;
+    // private apiKey: string;
 
-    constructor(baseUrl: string = '/api/v2', apiKey: string = '') {
-        this.baseUrl = baseUrl;
-        this.apiKey = apiKey;
+    constructor(_baseUrl: string = '/api/v2', _apiKey: string = '') {
+        // this.baseUrl = baseUrl;
+        // this.apiKey = apiKey;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    private async makeRequest<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<DataSourceResult<T>> {
-        try {
-            const response = await fetch(`${this.baseUrl}${endpoint}`, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.apiKey}`,
-                    ...options.headers,
-                },
-            });
-
-            if (!response.ok) {
-                return {
-                    success: false,
-                    error: `API Error: ${response.status} ${response.statusText}`,
-                };
-            }
-
-            const data = await response.json();
-            return {
-                success: true,
-                data: data.data || data,
-                total: data.total,
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            };
-        }
-    }
 
     async list(_options: ListOptions = {}): Promise<DataSourceResult<Ingredient[]>> {
         // TODO: Implement actual API call
