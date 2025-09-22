@@ -26,6 +26,7 @@ export class DxApiClient implements IDataSource {
         this.apiKey = apiKey;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private async makeRequest<T>(
         endpoint: string,
         options: RequestInit = {}
