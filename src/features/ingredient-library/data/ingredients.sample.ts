@@ -18,7 +18,13 @@ export const INGREDIENTS_SEED: Ingredient[] = [
         casNumber: '8007-75-8',
         ifraLimitPct: 0.4,
         allergens: ['Limonene', 'Linalool', 'Bergapten'],
-        updatedAt: '2024-03-15T10:30:00Z'
+        updatedAt: '2024-03-15T10:30:00Z',
+        ingredientId: {
+            value: 'BG-001',
+            displayValue: 'BG-001',
+            action: 'url',
+            url: 'https://example.com/ingredients/bg-001'
+        }
     },
     // Sub-components of Bergamot
     {
@@ -70,7 +76,13 @@ export const INGREDIENTS_SEED: Ingredient[] = [
         casNumber: '8008-56-8',
         ifraLimitPct: 2.0,
         allergens: ['Limonene', 'Citral'],
-        updatedAt: '2024-03-14T14:20:00Z'
+        updatedAt: '2024-03-14T14:20:00Z',
+        ingredientId: {
+            value: 'LEM-002',
+            displayValue: 'LEM-002',
+            action: 'popup',
+            popupTitle: 'Lemon Essential Oil Details'
+        }
     },
     // Sub-components of Lemon
     {
@@ -122,7 +134,13 @@ export const INGREDIENTS_SEED: Ingredient[] = [
         casNumber: '8008-57-9',
         ifraLimitPct: 1.25,
         allergens: ['Limonene'],
-        updatedAt: '2024-03-13T16:45:00Z'
+        updatedAt: '2024-03-13T16:45:00Z',
+        ingredientId: {
+            value: 'ORG-003',
+            displayValue: 'ORG-003',
+            action: 'popup',
+            popupTitle: 'Sweet Orange Essential Oil Details'
+        }
     },
 
     {

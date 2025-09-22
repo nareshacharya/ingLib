@@ -54,48 +54,62 @@ The application follows a strict **MVC (Model-View-Controller)** architecture fo
 
 ```
 src/features/ingredient-library/
-├── README.md                    # Feature documentation
 ├── index.ts                     # Public API exports
 ├── styles.ts                    # Centralized Tailwind utility maps
 ├── constants/
-│   └── filterOptions.ts         # Filter configuration options
+│   ├── configManager.ts        # Master configuration management
+│   ├── filterConfig.ts         # Filter configuration definitions
+│   ├── filterOptions.ts        # Filter option values
+│   ├── tableConfig.ts          # Table behavior configuration
+│   └── uiConfig.ts             # UI component visibility settings
 ├── theme/
 │   ├── tokens.ts               # Design tokens (colors, spacing, typography)
-│   ├── icons.ts                # Icon definitions
-│   └── icons.tsx               # Icon components
+│   ├── iconTypes.ts            # Icon type definitions
+│   ├── iconConstants.ts        # Icon SVG definitions
+│   └── icons.tsx               # Icon React components
 ├── model/
 │   ├── types.ts                # Core data types and interfaces
 │   └── schemas.ts              # Type guards and validation
 ├── data/
-│   ├── ingredients.sample.ts   # Mock data for development (832 ingredients)
-│   └── i18n.en.ts             # Internationalization strings
+│   └── ingredients.sample.ts    # Mock data for development (832 ingredients)
 ├── services/
 │   ├── dataSource.ts          # Data source interface
+│   ├── apiDataSource.ts       # API data source implementation
 │   ├── dxApiClient.ts         # Pega DX API client (ready for integration)
-│   ├── localDataSource.ts    # Local data implementation
-│   └── viewStore.ts           # Saved views management
+│   └── localDataSource.ts     # Local data implementation
 ├── controller/
 │   ├── advancedTableController.ts  # Advanced table state management
-│   ├── filterBuilder.ts            # Dynamic filtering logic
 │   ├── selectors.ts                # Pure utility functions
-│   ├── tableController.tsx         # Main TanStack Table controller
-│   └── __tests__/                  # Comprehensive test suites
+│   └── __tests__/                  # Test suites
 └── view/
     ├── IngredientLibrary.tsx       # Main page component
     └── components/                 # Reusable UI components
-        ├── Badges.tsx
-        ├── ColumnManager.tsx
-        ├── CompareDialog.tsx
-        ├── DataTable.tsx
-        ├── Empty.tsx
-        ├── ErrorState.tsx
-        ├── FilterDropdown.tsx
-        ├── Loading.tsx
-        ├── Multiselect.tsx
-        ├── SavedViews.tsx
-        ├── StatsBar.tsx
-        └── Toolbar.tsx
+        ├── CompareDialog.tsx       # Ingredient comparison dialog
+        └── ConfigPage.tsx         # Configuration UI (dev only)
 ```
+
+### Key Files Explained
+
+**Configuration Files**:
+- `configManager.ts` - Central configuration hub with presets
+- `tableConfig.ts` - Table behavior (pagination, sorting, selection)
+- `uiConfig.ts` - UI component visibility and content
+- `filterConfig.ts` - Filter definitions and options
+
+**Core Components**:
+- `IngredientLibrary.tsx` - Main application component
+- `CompareDialog.tsx` - Ingredient comparison modal
+- `ConfigPage.tsx` - Development configuration UI
+
+**Data Layer**:
+- `dataSource.ts` - Common interface for all data sources
+- `localDataSource.ts` - Local/sample data implementation
+- `apiDataSource.ts` - API integration implementation
+
+**Styling**:
+- `styles.ts` - Centralized Tailwind utility maps
+- `tokens.ts` - Design system tokens
+- `icons.tsx` - Icon component library
 
 ## Data Architecture
 
@@ -141,6 +155,336 @@ const dataSource = new LocalDataSource();
 
 // Production (Pega DX API or other external source)
 const dataSource = new DxApiClient("https://api.your-system.com", apiKey);
+```
+
+## Developer Configuration
+
+### Overview
+
+The Ingredient Library includes a comprehensive configuration system that allows developers to customize table behavior programmatically. The configuration UI is only available in development mode and is hidden in production builds.
+
+### Configuration Architecture
+
+The system uses a hierarchical configuration approach with the following files:
+
+- **`configManager.ts`** - Master configuration management and presets
+- **`tableConfig.ts`** - Table-specific settings (pagination, sorting, columns)
+- **`uiConfig.ts`** - UI component visibility and behavior
+- **`filterConfig.ts`** - Filter definitions and options
+
+### Master Configuration
+
+The main configuration is managed through `DEFAULT_MASTER_CONFIG` in `configManager.ts`:
+
+```typescript
+export const DEFAULT_MASTER_CONFIG: MasterConfig = {
+  table: {
+    pagination: {
+      enabled: true,
+      defaultPageSize: 20,
+      pageSizeOptions: [10, 20, 50, 100],
+      showPageSizeSelector: true,
+      showNavigationButtons: true,
+      showPageInfo: true,
+    },
+    sorting: {
+      enabled: true,
+      defaultSort: [{ id: 'name', desc: false }],
+      multiSort: true,
+    },
+    columns: {
+      enableColumnVisibility: true,
+      enableColumnReordering: true,
+      enableColumnResizing: true,
+    },
+    selection: {
+      enableRowSelection: true,
+      enableChildRowSelection: false,
+      enableMultiRowSelection: true,
+      maxSelections: 10,
+    },
+    expansion: {
+      enabled: true,
+      defaultExpandedRows: [],
+      enableAutoExpand: false,
+    },
+    grouping: {
+      enabled: true,
+      defaultGrouping: [],
+      enableMultiGrouping: true,
+    },
+    export: {
+      enabled: true,
+      availableFormats: [
+        { key: 'csv', label: 'CSV', enabled: true },
+        { key: 'json', label: 'JSON', enabled: true }
+      ],
+      enableBulkExport: true,
+    },
+  },
+  ui: {
+    header: {
+      showTitle: true,
+      title: "Ingredient Library",
+      showDescription: true,
+      description: "Manage your perfume ingredients with advanced filtering and hierarchical organization"
+    },
+    stats: {
+      showTotal: true,
+      showActive: true,
+      showFavorites: true,
+      showLowStock: true,
+    },
+    toolbar: {
+      showSearch: true,
+      showFilters: true,
+      showColumnManager: true,
+      showCompare: true,
+    },
+    pagination: {
+      showPageSizeSelector: true,
+      showNavigationButtons: true,
+      showPageInfo: true,
+      pageSizeOptions: [10, 20, 50, 100],
+    },
+  },
+  filters: {
+    enabled: true,
+    showAdvancedFilters: true,
+    showQuickFilters: true,
+    enableGlobalSearch: true,
+  },
+  dataSource: {
+    type: 'local',
+    config: {
+      baseUrl: '',
+      apiKey: '',
+      timeout: 30000,
+    },
+  },
+};
+```
+
+### Table Configuration
+
+Table-specific settings are configured in `tableConfig.ts`:
+
+```typescript
+export const DEFAULT_TABLE_CONFIG: TableConfig = {
+  selection: {
+    enableRowSelection: true,
+    enableChildRowSelection: false,
+    enableMultiRowSelection: true,
+    maxSelections: 10,
+  },
+  expansion: {
+    enabled: true,
+    defaultExpandedRows: [],
+    enableAutoExpand: false,
+  },
+  pagination: {
+    enabled: true,
+    defaultPageSize: 20,
+    pageSizeOptions: [10, 20, 50, 100],
+    showPageSizeSelector: true,
+    showNavigationButtons: true,
+    showPageInfo: true,
+  },
+  sorting: {
+    enabled: true,
+    defaultSort: [{ id: 'name', desc: false }],
+    multiSort: true,
+  },
+  columns: {
+    enableColumnVisibility: true,
+    enableColumnReordering: true,
+    enableColumnResizing: true,
+  },
+  grouping: {
+    enabled: true,
+    defaultGrouping: [],
+    enableMultiGrouping: true,
+  },
+  export: {
+    enabled: true,
+    availableFormats: [
+      { key: 'csv', label: 'CSV', enabled: true },
+      { key: 'json', label: 'JSON', enabled: true }
+    ],
+    enableBulkExport: true,
+  },
+};
+```
+
+### UI Configuration
+
+UI component visibility is controlled through `uiConfig.ts`:
+
+```typescript
+export const DEFAULT_UI_CONFIG: UIConfig = {
+  header: {
+    showTitle: true,
+    title: "Ingredient Library",
+    showDescription: true,
+    description: "Manage your perfume ingredients with advanced filtering and hierarchical organization"
+  },
+  stats: {
+    showTotal: true,
+    showActive: true,
+    showFavorites: true,
+    showLowStock: true,
+  },
+  toolbar: {
+    showSearch: true,
+    showFilters: true,
+    showColumnManager: true,
+    showCompare: true,
+  },
+  pagination: {
+    showPageSizeSelector: true,
+    showNavigationButtons: true,
+    showPageInfo: true,
+    pageSizeOptions: [10, 20, 50, 100],
+  },
+};
+```
+
+### Filter Configuration
+
+Filters are configured through `filterConfig.ts`:
+
+```typescript
+export const FILTER_CONFIG: FilterConfig[] = [
+  {
+    id: 'category',
+    label: 'Category',
+    icon: '📂',
+    type: 'checkbox',
+    options: [
+      { value: 'Essential Oils', label: 'Essential Oils' },
+      { value: 'Isolates', label: 'Isolates' },
+      { value: 'Aroma Chemicals', label: 'Aroma Chemicals' },
+      { value: 'Natural Extracts', label: 'Natural Extracts' },
+    ],
+    enabled: true,
+  },
+  {
+    id: 'status',
+    label: 'Status',
+    icon: '📊',
+    type: 'checkbox',
+    options: [
+      { value: 'Active', label: 'Active' },
+      { value: 'Inactive', label: 'Inactive' },
+      { value: 'Limited', label: 'Limited' },
+    ],
+    enabled: true,
+  },
+  // ... other filters
+];
+```
+
+### Developer Configuration UI
+
+A configuration UI is available in development mode (`NODE_ENV === 'development'`) via the "Configure Table (Dev Only)" button. This provides:
+
+- Visual configuration of all table settings
+- Real-time preview of changes
+- Export/import of configuration presets
+- Validation of configuration options
+
+**Production Behavior:**
+- Configuration UI is automatically hidden in production builds
+- All table behavior is controlled through code configuration
+- No runtime configuration changes for end users
+
+### Configuration Presets
+
+The system includes several configuration presets for common use cases:
+
+```typescript
+export const CONFIG_PRESETS = {
+  BASIC: {
+    // Minimal configuration for simple use cases
+    table: { /* basic table settings */ },
+    ui: { /* minimal UI components */ },
+  },
+  ADVANCED: {
+    // Full-featured configuration
+    table: { /* all table features enabled */ },
+    ui: { /* all UI components visible */ },
+  },
+  API_CONNECTED: {
+    // Configuration for external API integration
+    dataSource: { type: 'api' as const },
+    table: { /* API-optimized settings */ },
+  },
+};
+```
+
+### Quick Configuration Examples
+
+**Enable Child Row Selection:**
+```typescript
+// In configManager.ts
+table: {
+  selection: {
+    enableChildRowSelection: true, // Change to true
+  }
+}
+```
+
+**Disable All Selection:**
+```typescript
+table: {
+  selection: {
+    enableRowSelection: false, // Change to false
+  }
+}
+```
+
+**Add New Filter:**
+```typescript
+// In filterConfig.ts
+{
+  id: 'newField',
+  label: 'New Filter',
+  icon: '🔍',
+  type: 'checkbox',
+  options: newFieldOptions,
+  enabled: true,
+}
+```
+
+**Customize UI Components:**
+```typescript
+// In uiConfig.ts
+ui: {
+  header: {
+    showTitle: true,
+    title: "My Custom Library",
+    showDescription: false, // Hide description
+  },
+  stats: {
+    showTotal: true,
+    showActive: false, // Hide active count
+    showFavorites: true,
+    showLowStock: true,
+  },
+}
+```
+
+**Change Data Source:**
+```typescript
+// In configManager.ts
+dataSource: {
+  type: 'api',
+  config: {
+    baseUrl: 'https://api.mycompany.com',
+    apiKey: process.env.API_KEY,
+    timeout: 30000,
+  },
+}
 ```
 
 ## Advanced Features
@@ -207,15 +551,17 @@ const dataSource = new DxApiClient("https://api.your-system.com", apiKey);
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or yarn
+- **Node.js 18+** - Required for modern JavaScript features
+- **npm or yarn** - Package manager
+- **TypeScript knowledge** - The codebase is strictly typed
+- **React experience** - Built with React 19.1.1
 
 ### Installation
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd ingLib1
+cd ingLib
 
 # Install dependencies
 npm install
@@ -224,24 +570,161 @@ npm install
 npm run dev
 ```
 
+The application will be available at `http://localhost:5173`
+
 ### Development Commands
 
 ```bash
 # Development
-npm run dev              # Start dev server
-
-# Building
+npm run dev              # Start dev server with hot reload
 npm run build            # Build for production
-npm run preview          # Preview production build
+npm run preview          # Preview production build locally
 
 # Code Quality
-npm run lint             # Run ESLint
-npm run type-check       # TypeScript type checking
+npm run lint             # Run ESLint with TypeScript rules
+npm run type-check       # TypeScript type checking (via tsc -b)
 
-# Testing
+# Testing (when implemented)
 npm run test             # Run unit tests
 npm run test:watch       # Run tests in watch mode
 npm run test:coverage    # Generate coverage report
+```
+
+### Project Setup
+
+1. **Environment Variables** (Optional):
+   ```bash
+   # Create .env file for API configuration
+   VITE_API_URL=https://api.your-system.com
+   VITE_API_KEY=your-api-key
+   ```
+
+2. **Development Configuration**:
+   - The configuration UI is available in development mode
+   - Look for the "Configure Table (Dev Only)" button in the header
+   - This allows visual configuration of all table settings
+
+3. **Code Structure**:
+   ```
+   src/
+   ├── features/ingredient-library/    # Main feature module
+   │   ├── constants/                  # Configuration files
+   │   ├── controller/                 # Business logic
+   │   ├── model/                      # Type definitions
+   │   ├── services/                   # Data sources
+   │   ├── view/                       # React components
+   │   └── styles.ts                   # Centralized styling
+   ├── App.tsx                         # Main app component
+   └── main.tsx                        # Application entry point
+   ```
+
+### First Steps
+
+1. **Explore the Configuration**:
+   - Open `src/features/ingredient-library/constants/configManager.ts`
+   - Review the `DEFAULT_MASTER_CONFIG` object
+   - Understand the configuration structure
+
+2. **Customize Table Behavior**:
+   - Modify `tableConfig.ts` for table-specific settings
+   - Adjust `uiConfig.ts` for UI component visibility
+   - Update `filterConfig.ts` for filter options
+
+3. **Test Your Changes**:
+   - Use the development configuration UI
+   - Verify changes in the browser
+   - Check console for any TypeScript errors
+
+4. **Integrate with Your Data**:
+   - Implement `IDataSource` interface for your backend
+   - Update `dataSource` configuration
+   - Test with your actual data
+
+### Development Workflow
+
+1. **Make Configuration Changes**:
+   ```typescript
+   // Edit configuration files
+   // src/features/ingredient-library/constants/
+   ```
+
+2. **Test in Development**:
+   ```bash
+   npm run dev
+   # Use configuration UI to test changes
+   ```
+
+3. **Validate TypeScript**:
+   ```bash
+   npm run type-check
+   npm run lint
+   ```
+
+4. **Build for Production**:
+   ```bash
+   npm run build
+   npm run preview  # Test production build
+   ```
+
+### Common Development Tasks
+
+**Adding a New Filter**:
+```typescript
+// 1. Add to filterConfig.ts
+{
+  id: 'supplier',
+  label: 'Supplier',
+  icon: '🏭',
+  type: 'checkbox',
+  options: supplierOptions,
+  enabled: true,
+}
+
+// 2. Update filterOptions.ts with options
+export const supplierOptions = [
+  { value: 'Supplier A', label: 'Supplier A' },
+  { value: 'Supplier B', label: 'Supplier B' },
+];
+```
+
+**Customizing UI Components**:
+```typescript
+// Edit uiConfig.ts
+ui: {
+  header: {
+    showTitle: true,
+    title: "My Custom Library",
+  },
+  stats: {
+    showTotal: true,
+    showActive: false, // Hide this stat
+  },
+}
+```
+
+**Changing Data Source**:
+```typescript
+// Update configManager.ts
+dataSource: {
+  type: 'api',
+  config: {
+    baseUrl: 'https://api.mycompany.com',
+    apiKey: process.env.VITE_API_KEY,
+  },
+}
+```
+
+**Adding New Columns**:
+```typescript
+// Edit IngredientLibrary.tsx columns array
+{
+  accessorKey: "newField",
+  header: "New Field",
+  cell: ({ getValue }) => (
+    <span className="text-sm">{getValue() as string}</span>
+  ),
+  size: 100,
+}
 ```
 
 ## Usage Examples
@@ -324,32 +807,236 @@ interface IDataSource {
 }
 ```
 
-## Known Issues & Solutions
+## Troubleshooting
 
-### Current Issues
+### Common Issues & Solutions
 
-1. **Compare Ingredients Flow**: Dialog may not display properly in some scenarios
-2. **Expand/Collapse Behavior**: Missing chevron icons and expansion not working consistently
+#### 1. Configuration UI Not Visible
 
-### Troubleshooting
+**Problem**: "Configure Table" button not showing in development
 
-#### Compare Dialog Not Opening
+**Solution**:
+```bash
+# Ensure you're in development mode
+NODE_ENV=development npm run dev
 
-- Ensure 2-5 ingredients are selected
-- Check browser console for TypeScript errors
-- Verify Radix UI Dialog dependencies
+# Or check your .env file
+echo "NODE_ENV=development" > .env
+```
 
-#### Expansion Icons Missing
+#### 2. TypeScript Compilation Errors
 
-- Check icon SVG components in theme/icons.tsx
-- Verify CSS classes for icon visibility
-- Ensure proper TanStack Table getSubRows configuration
+**Problem**: Type errors during build
 
-#### Performance Issues with Large Datasets
+**Solutions**:
+```bash
+# Check TypeScript configuration
+npm run type-check
 
-- Enable virtualization for tables > 1000 rows
-- Implement server-side pagination
-- Use React.memo for expensive components
+# Common fixes:
+# 1. Ensure all imports use 'type' for interfaces
+import type { MasterConfig } from './configManager';
+
+# 2. Check verbatimModuleSyntax compliance
+# 3. Verify all required properties are defined
+```
+
+#### 3. Table Not Rendering Data
+
+**Problem**: Empty table or loading state
+
+**Solutions**:
+```typescript
+// Check data source configuration
+const dataSource = new LocalDataSource(); // Ensure this is instantiated
+
+// Verify data structure matches Ingredient interface
+// Check browser console for errors
+// Ensure data has required fields: id, name, category, etc.
+```
+
+#### 4. Filters Not Working
+
+**Problem**: Filters not applying or showing options
+
+**Solutions**:
+```typescript
+// Check filter configuration in filterConfig.ts
+// Ensure filter IDs match column accessorKeys
+// Verify filter options are properly defined
+// Check that filter type matches data type
+```
+
+#### 5. Styling Issues
+
+**Problem**: Components not styled correctly
+
+**Solutions**:
+```bash
+# Ensure Tailwind CSS is properly configured
+npm run build  # Check for CSS build errors
+
+# Check styles.ts for utility mappings
+# Verify Tailwind classes are not purged
+# Ensure proper CSS imports in main.tsx
+```
+
+#### 6. Performance Issues
+
+**Problem**: Slow rendering or interactions
+
+**Solutions**:
+```typescript
+// Enable virtualization for large datasets
+// Use React.memo for expensive components
+// Implement proper dependency arrays in useEffect
+// Check for unnecessary re-renders
+```
+
+#### 7. API Integration Issues
+
+**Problem**: External API not working
+
+**Solutions**:
+```typescript
+// Check API configuration
+dataSource: {
+  type: 'api',
+  config: {
+    baseUrl: 'https://your-api.com',
+    apiKey: process.env.VITE_API_KEY,
+    timeout: 30000,
+  },
+}
+
+// Verify API endpoints match expected interface
+// Check network requests in browser dev tools
+// Ensure CORS is properly configured
+```
+
+### Development Debugging
+
+#### Enable Debug Logging
+
+```typescript
+// Add to IngredientLibrary.tsx for debugging
+useEffect(() => {
+  console.log('Current config:', masterConfig);
+  console.log('Table state:', {
+    sorting,
+    columnFilters,
+    pagination,
+    rowSelection,
+  });
+}, [masterConfig, sorting, columnFilters, pagination, rowSelection]);
+```
+
+#### Check Configuration State
+
+```typescript
+// In browser console
+const configManager = new ConfigManager(DEFAULT_MASTER_CONFIG);
+console.log('Default config:', configManager.getConfig());
+console.log('Available presets:', CONFIG_PRESETS);
+```
+
+#### Validate Data Structure
+
+```typescript
+// Check if data matches expected interface
+const sampleIngredient = data[0];
+console.log('Sample ingredient:', sampleIngredient);
+console.log('Has required fields:', {
+  id: !!sampleIngredient.id,
+  name: !!sampleIngredient.name,
+  category: !!sampleIngredient.category,
+  // ... other required fields
+});
+```
+
+### Browser Compatibility
+
+#### Supported Browsers
+- **Chrome**: 90+
+- **Firefox**: 88+
+- **Safari**: 14+
+- **Edge**: 90+
+
+#### Known Browser Issues
+
+**Safari**: Some CSS Grid features may need fallbacks
+**Firefox**: Check for CSS custom properties support
+**IE**: Not supported (uses modern JavaScript features)
+
+### Performance Optimization
+
+#### Large Dataset Handling
+
+```typescript
+// For datasets > 1000 items
+// Enable virtualization in table configuration
+table: {
+  virtualization: {
+    enabled: true,
+    rowHeight: 40,
+    overscan: 10,
+  }
+}
+```
+
+#### Memory Management
+
+```typescript
+// Use React.memo for expensive components
+const ExpensiveComponent = React.memo(({ data }) => {
+  // Component logic
+});
+
+// Implement proper cleanup
+useEffect(() => {
+  return () => {
+    // Cleanup subscriptions, timers, etc.
+  };
+}, []);
+```
+
+### Error Handling
+
+#### Common Error Messages
+
+**"Cannot read property 'id' of undefined"**
+- Check data structure
+- Verify all ingredients have required fields
+- Ensure proper null/undefined handling
+
+**"Maximum update depth exceeded"**
+- Check for infinite loops in useEffect
+- Verify dependency arrays
+- Look for state updates in render
+
+**"Module not found"**
+- Check import paths
+- Verify file extensions
+- Ensure proper TypeScript configuration
+
+### Getting Help
+
+1. **Check Console Errors**: Always start with browser console
+2. **Review Configuration**: Verify all config files are correct
+3. **Test with Sample Data**: Use local data source first
+4. **Check TypeScript**: Run `npm run type-check`
+5. **Validate Build**: Run `npm run build` for production issues
+
+### Recent Fixes
+
+✅ **All Major Issues Resolved**:
+- **Expand/Collapse Functionality**: Fixed with proper chevron icons and working expansion
+- **Compare Ingredients**: Fully functional with proper dialog display
+- **Icon System**: Complete icon library with proper SVG rendering
+- **Hierarchical Data**: Working parent-child relationships with expandable rows
+- **Configuration UI**: Environment-based visibility (dev only)
+- **TypeScript Errors**: All compilation issues resolved
+- **Responsive Design**: Full-width layout with consistent panel spacing
 
 ## Testing
 
@@ -409,12 +1096,19 @@ npm run test:coverage
 
 ## Roadmap
 
+### ✅ Completed (Recent Updates)
+
+- [x] **Expand/Collapse Functionality**: Fixed chevron icons and hierarchical row expansion
+- [x] **Icon System**: Complete icon library with proper SVG rendering
+- [x] **Code Cleanup**: Removed unused files and components
+- [x] **Compare Dialog**: Fully functional ingredient comparison
+
 ### Near Term
 
-- [ ] Resolve expand/collapse issues
-- [ ] Fix Compare Dialog edge cases
 - [ ] Enhanced mobile responsiveness
-- [ ] Saved views functionality
+- [ ] Advanced filtering UI improvements
+- [ ] Performance optimization for large datasets
+- [ ] Enhanced export options
 
 ### Future Enhancements
 
@@ -423,7 +1117,8 @@ npm run test:coverage
 - [ ] Batch operations interface
 - [ ] Integration with formula management
 - [ ] Multi-language support
-- [ ] Advanced export formats
+- [ ] Advanced export formats (Excel, PDF)
+- [ ] Real-time collaboration features
 
 ## License
 

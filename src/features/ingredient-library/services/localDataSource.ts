@@ -77,8 +77,8 @@ export class LocalDataSource implements IDataSource {
 
         return [...ingredients].sort((a, b) => {
             for (const sort of sortBy) {
-                let aValue = (a as any)[sort.id];
-                let bValue = (b as any)[sort.id];
+                let aValue = (a as Record<string, unknown>)[sort.id];
+                let bValue = (b as Record<string, unknown>)[sort.id];
 
                 // Handle special cases
                 if (sort.id === 'costPerKg' || sort.id === 'stock') {
@@ -262,7 +262,7 @@ export class LocalDataSource implements IDataSource {
                 const csvHeaders = headers.join(',');
                 const csvRows = ingredients.map(ing =>
                     headers.map(header => {
-                        const value = (ing as any)[header];
+                        const value = (ing as Record<string, unknown>)[header];
                         if (Array.isArray(value)) return `"${value.join('; ')}"`;
                         if (typeof value === 'string' && value.includes(',')) return `"${value}"`;
                         return value;
@@ -318,7 +318,7 @@ export class LocalDataSource implements IDataSource {
                 };
             }
 
-            const { id: _, updatedAt: __, ...ingredientData } = ingredient;
+            const { id, updatedAt, ...ingredientData } = ingredient;
             return this.create({
                 ...ingredientData,
                 name: `${ingredient.name} (Copy)`,

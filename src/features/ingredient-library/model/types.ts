@@ -25,6 +25,14 @@ export interface Ingredient {
     updatedAt: string;
     parentId?: IngredientId;
     subRows?: Ingredient[];
+    // Ingredient ID configuration
+    ingredientId?: {
+        value: string;
+        displayValue?: string;
+        action: 'url' | 'popup';
+        url?: string;
+        popupTitle?: string;
+    };
 }
 
 // Legacy interface - kept for backward compatibility
@@ -68,6 +76,7 @@ export interface TableState {
 
 export type ColumnKey =
     | 'select'
+    | 'ingredientId'
     | 'name'
     | 'category'
     | 'family'
@@ -101,7 +110,7 @@ export interface CompareData {
     fields: Array<{
         key: keyof Ingredient;
         label: string;
-        format?: (value: any) => string;
+        format?: (value: unknown) => string;
     }>;
 }
 
@@ -134,6 +143,7 @@ export interface SortSpec {
 // Configurable Columns
 export type ColumnDefKey =
     | "select"
+    | "ingredientId"
     | "favorite"
     | "name"
     | "category"
@@ -162,7 +172,7 @@ export type GroupKey = "family" | "supplier" | "category" | null;
 // Configurable Filters
 export type FilterKind = "select" | "multiselect" | "range" | "switch" | "text";
 
-export interface FilterDef<T = any> {
+export interface FilterDef<T = string | number> {
     id: string;                  // e.g., "category"
     labelKey: string;            // i18n key or display label
     kind: FilterKind;
